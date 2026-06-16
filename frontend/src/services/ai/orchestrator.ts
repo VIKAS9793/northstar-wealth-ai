@@ -71,9 +71,9 @@ User Message: "${message}"`;
 /**
  * Pillar 1: Goal Intelligence Engine
  */
-export function runGoalIntelligenceEngine(profile: FinancialTwinProfile, classification: CognitiveClassification): string {
+export function runGoalIntelligenceEngine(profile: FinancialTwinProfile, classification?: CognitiveClassification): string {
   if (!profile.goals || profile.goals.length === 0) return "";
-  if (classification.intent === 'RESILIENCE' || classification.intent === 'OFF_TOPIC') return "";
+  if (classification && (classification.intent === 'RESILIENCE' || classification.intent === 'OFF_TOPIC')) return "";
   
   // Calculate Free Cash Flow for deterministic feasibility check
   const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;

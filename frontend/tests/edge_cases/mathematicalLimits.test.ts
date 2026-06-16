@@ -15,8 +15,8 @@ describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
     };
 
     const result = runGoalIntelligenceEngine(mockProfile);
-    expect(result).toContain('mathematically unachievable');
-    expect(result).toContain('free cash flow is only ₹500');
+    expect(result).toContain("gap and recommend debt consolidation");
+    expect(result).toContain("free cash flow is ₹500");
   });
 
   it('should allow goals if free cash flow is healthy', () => {
@@ -32,7 +32,7 @@ describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
     };
 
     const result = runGoalIntelligenceEngine(mockProfile);
-    expect(result).not.toContain('mathematically unachievable');
-    expect(result).toContain('priority goal is \'Car\'');
+    expect(result).not.toContain("gap and recommend debt consolidation");
+    expect(result).toContain("Priority goal is 'Car'");
   });
 });
