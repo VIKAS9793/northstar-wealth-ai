@@ -11,59 +11,65 @@
 
 An AI-powered Wealth Management interface built for the modern Indian investor. Designed as a Proof of Concept for the IDBI Innovate Hackathon.
 
-## Project Overview
+## Why This Project Exists
 
-This solution was inspired by recurring investor behaviors observed through real-world wealth management experience.
+This solution originated from recurring investor behaviors observed through years of wealth advisory interactions.
 
-Across thousands of customer interactions, we found that investors rarely ask technical financial questions. Instead, they ask practical life questions:
+Investors rarely ask:
+- What is the optimal asset allocation?
+- Which fund has the highest alpha?
+- What is the expense ratio?
 
-- Can I buy a house in 10 years?
-- Am I saving enough for retirement?
-- Should I continue my SIP during market corrections?
-- What should I do with my bonus?
+Instead, they ask:
+- Should I stop my SIP?
+- Why isn't my portfolio growing?
+- Where should I invest my bonus?
+- Am I investing correctly?
+- Will I be able to retire comfortably?
 
-We also observed that SIP discontinuation is often caused not by market fear, but by life events such as medical emergencies, cash-flow stress, and unexpected financial obligations.
+Through these interactions, a recurring pattern emerged:  
+**Financial products are abundant. Financial confidence is not.**
 
-Existing wealth platforms focus on recommending products.
+NorthStar Wealth Companion was created to bridge that gap by combining:
+- Goal-Based Planning
+- Financial Education
+- Behavioral Coaching
+- Financial Resilience Intelligence
+- Explainable AI
+- Governance-Aware Guidance
 
-**IDBI Wealth Companion focuses on helping investors stay on track.**
+into a single investor-centric experience.
 
-By combining goal-based planning, financial resilience assessment, behavioral coaching, investor education, and governance-aware AI, the platform helps customers build long-term financial confidence while remaining compliant, explainable, and scalable for digital banking environments.
+## What Makes This Different
 
-> [!NOTE]
-> Built from real investor conversations. Designed for real financial outcomes.
+Most wealth platforms are built around products.  
+**NorthStar Wealth Companion is built around investor behavior.**
 
-## Field Observations Behind The Product
+Key insights incorporated into the solution include:
 
-The solution is built around four recurring investor patterns observed during real-world customer interactions.
-
-### 1. SIP Resilience
-Investors frequently stop SIPs because of life events rather than market volatility. Ensuring adequate emergency buffers prevents panic liquidations.
-
-### 2. Goal Language
-Investors think in life goals (e.g., "Child's Education", "Retirement") rather than financial products (e.g., "Flexi-cap Equity Fund").
-
-### 3. Behavioral Biases
-FOMO, herd mentality, recency bias, and panic selling repeatedly influence decision-making. 
-
-### 4. Financial Literacy
-Simple mental models consistently outperform financial jargon in improving understanding.
-
----
-
-## Core Differentiator
-
-Most wealth platforms focus on investment recommendations. **IDBI Wealth Companion focuses on investment continuity.**
-
-The platform attempts to answer a different question: *"Can this investor remain invested when life becomes difficult?"*
-
-The underlying **Financial Resilience Engine** evaluates:
-- Emergency fund adequacy
-- SIP continuity risk
+### SIP Resilience Framework
+One of the most overlooked realities in wealth management is that SIP discontinuation is not always caused by market panic. Common causes include:
+- Medical emergencies
+- Family obligations
 - Cash-flow stress
-- Life-event disruptions
+- Unexpected expenses
+- Lack of emergency reserves
 
-before delivering wealth guidance.
+The platform proactively identifies these risks and promotes financial resilience before investment discipline breaks down.
+
+### Real Investor Question Taxonomy
+The conversational architecture is modeled around actual investor questions rather than idealized financial terminology. This allows the system to interact naturally with retail investors and reduce cognitive barriers to investing.
+
+### Behavioral Finance Layer
+Designed to address FOMO, herd mentality, loss aversion, panic selling, performance chasing, and recency bias through contextual coaching and educational interventions.
+
+### Financial Education Through Mental Models
+The platform explains complex financial concepts using relatable analogies observed to resonate with investors:
+- **Mango Tree** → Compounding
+- **Sale Season** → SIP Cost Averaging
+- **Cricket Team** → Diversification
+
+The objective is comprehension, not complexity.
 
 ## Human + AI
 
@@ -139,6 +145,61 @@ npm run dev
 ```
 
 Navigate to `http://localhost:3000` to interact with the application.
+
+---
+
+## Creator
+
+**Vikas Sahani**  
+*BFSI & Wealth Advisory Professional • FinTech Builder*
+
+Vikas brings a unique combination of technology and real-world wealth advisory experience. This project is built upon direct investor interactions, wealth management consulting, behavioral finance observations, and practical challenges faced by retail investors throughout their financial journey.
+
+Unlike solutions designed purely from product specifications or market research, NorthStar Wealth Companion is grounded in real investor conversations, real SIP retention challenges, real financial anxieties, and real decision-making patterns observed through client advisory engagements.
+
+**The objective is simple:**  
+Transform financial confusion into financial confidence through explainable, goal-centric, and responsible AI guidance.
+
+### Connect With Me
+- [Vikas Sahani – LinkedIn](https://www.linkedin.com/in/vikas-sahani-4a34b2239/)
+- [VIKAS9793 – GitHub](https://github.com/VIKAS9793)
+- [Portfolio Website](#)
+
+---
+
+## Project Information
+
+- **Project:** NorthStar Wealth Companion
+- **Category:** AI-Powered Wealth Coaching Platform
+- **Submission:** IDBI Innovate 2026 – Wealth Advisory Track
+- **Status:** Prototype / Proof of Concept
+
+### Focus Areas
+- Wealth Management
+- Financial Literacy
+- Investor Education
+- Behavioral Finance
+- Goal-Based Planning
+- Financial Resilience
+- Explainable AI
+- Responsible AI Governance
+
+---
+
+## Acknowledgements
+
+Developed as a submission for **IDBI Innovate 2026 – Wealth Advisory Track**.  
+Special thanks to the organizers, mentors, banking professionals, and innovation ecosystem working to advance the future of digital financial services in India.
+
+---
+
+## Disclaimer
+
+NorthStar Wealth Companion is a prototype developed for innovation and demonstration purposes.
+
+The platform is intended to provide educational, illustrative, and goal-oriented guidance only. It does not provide investment advice, guaranteed outcomes, or personalized recommendations under any regulatory framework.
+
+Investment decisions should be made after considering individual circumstances, applicable regulations, and professional financial advice where appropriate.
 
 ---
 
