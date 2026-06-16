@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-navy: #003366;
+  --color-brand-navy-light: #004d99;
+  --color-brand-gold: #ffcc00;
+  --color-brand-gold-dark: #ccaa00;
+  --color-brand-light: #f8fafc;
+}
+
+:root {
+  --color-background: #ffffff;
+  --color-foreground: #1e293b;
+  --font-sans: var(--font-inter);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    background-image: none;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Scrollbar Styling (Clean Enterprise Theme) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 51, 102, 0.3); /* Brand Navy equivalent, semi-transparent */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 51, 102, 0.6);
+}
