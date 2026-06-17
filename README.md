@@ -8,8 +8,12 @@
 ![Vitest](https://img.shields.io/badge/Vitest-Passing-729B1B?style=for-the-badge&logo=vitest)
 ![NVIDIA NIM](https://img.shields.io/badge/NVIDIA_NIM-Llama_3.3_70B-76B900?style=for-the-badge&logo=nvidia)
 ![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
+[![Try the Live Demo](https://img.shields.io/badge/Try_the_Live_Demo-Interactive_PWA-2563EB?style=for-the-badge&logo=netlify&logoColor=cyan)](https://northstar-wealth-ai.netlify.app/)
 
 An AI-powered Wealth Management interface built for the modern Indian investor. Designed as a Proof of Concept for the IDBI Innovate Hackathon.
+
+> [!TIP]
+> **Live Interactive App:** You can experience the fully responsive mobile banking prototype directly at **[northstar-wealth-ai.netlify.app](https://northstar-wealth-ai.netlify.app/)**.
 
 ## Why This Project Exists
 
