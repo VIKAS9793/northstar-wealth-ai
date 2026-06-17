@@ -132,7 +132,24 @@ To ensure IDBI Wealth Companion survives rigorous, adversarial QA protocols (Hos
 > "To deliver highly personalized, timely advice, the system relies on deep behavioral telemetry. In this sandbox phase, the cashflow profile (Monthly Outflows, EMI Burden, Discretionary Spend) is mocked via static persona generation to demonstrate the mathematical routing of the Central Nervous System (CNS) layer. For the final production rollout, this telemetry layer is architected to ingest live transaction feeds from IDBI's core banking databases. This enables the engine to automatically compute the customer's true spending habits and trigger real-time, proactive nudges (e.g., detecting a salary credit and immediately recommending a Step-Up SIP before the capital is spent)."
 
 **3. Timely & Proactive Nudges (The "Timely" Requirement)**
-> "Unlike traditional reactive chatbots, Dhan operates as a proactive wealth manager. The architecture includes a webhook-ready listener designed to trigger event-driven outreach. For example, the system monitors specific transaction events (like a large bonus credit or a missed SIP). When triggered, Dhan initiates the conversation, surfacing a push notification to the customer with personalized advice, transforming the wealth management experience from passive querying to active guidance."
+> "Unlike traditional reactive chatbots, Dhan operates as a proactive wealth manager. The architecture includes a webhook-ready listener designed to trigger event-driven outreach. For example, the system monitors specific transaction events (like a large bonus credit or a missed SIP). When triggered, Dhan initiates the conversation, surfacing a push notification to the customer with personalized advice, transforming the wealth management experience from passive querying to active guidance. (Note: The UI currently uses a simulated Event Trigger. Production: POST /api/webhooks/salary-credit fires automatically on IDBI core banking salary credit event.)"
+
+**4. Scalable Chat Context & Token Management**
+> "To ensure enterprise scalability and low latency, the conversational AI manages token limits rigorously. The production implementation uses a sliding context window of the last 6 exchanges, with a structured, condensed summary of the Financial Twin snapshot injected at position 0. This prevents unbound chat history growth and guarantees fast inference times without context degradation."
+
+## Post-Shortlist Integration Readiness Statement
+
+> Upon shortlisting, the Financial Twin will migrate from synthetic persona data to real customer profiles via IDBI's sandbox APIs:
+>
+> - **Customer Profile API** — initializes Financial Twin (age, income, risk profile, persona type)
+> - **Portfolio Holdings API** — replaces `total_invested` and `current_value` mock fields
+> - **SIP Transaction History API** — powers `sip_health_status` and continuity risk scoring
+> - **Account Balance / Inflow-Outflow API** — replaces telemetry mock fields with real cash flow data
+> - **Product Catalog API** — enables suitability-matched recommendations from IDBI Mutual Fund schemes
+>
+> The `getMockFinancialTwin()` function is the single integration boundary. Switching to live data requires replacing this function only. All downstream engines — Goal, Resilience, Suitability, Behavioral, Education — consume the `FinancialTwinProfile` interface and require no modification.
+>
+> Production deployment is infrastructure-agnostic and designed for migration into IDBI-controlled environments. Supabase is not used in this implementation. The NVIDIA NIM inference endpoint will be replaced with an on-premise or IDBI-approved inference layer post-shortlisting.
 
 ## Running the Application
 
@@ -161,9 +178,9 @@ Unlike solutions designed purely from product specifications or market research,
 Transform financial confusion into financial confidence through explainable, goal-centric, and responsible AI guidance.
 
 ### Connect With Me
-- [Vikas Sahani – LinkedIn](https://www.linkedin.com/in/vikas-sahani-4a34b2239/)
+- [Vikas Sahani – LinkedIn](https://www.linkedin.com/in/vikas-sahani-727420358)
 - [VIKAS9793 – GitHub](https://github.com/VIKAS9793)
-- [Portfolio Website](#)
+- [Portfolio Website](https://myportfoliohubexpo.netlify.app/)
 
 ---
 

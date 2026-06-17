@@ -24,7 +24,7 @@ export function validateInputSecurity(message: string): Result<string, string> {
     };
   }
 
-  const offTopicRegex = /(python|scrape|beautifulsoup|crypto|dogecoin|bitcoin|vote for|political party|politician|cricket match|bollywood)/i;
+  const offTopicRegex = /(python|scrape|beautifulsoup|vote for|political party|politician|cricket match|bollywood)/i;
   if (offTopicRegex.test(message)) {
     console.warn("Domain Rejection: Off-topic request intercepted at Layer 1");
     return {

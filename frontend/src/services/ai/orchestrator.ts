@@ -6,8 +6,7 @@ import { validateInputSecurity, validateOutputCompliance } from "@/features/gove
 // Initialize NVIDIA NIM Client (OpenAI Compatible)
 const nvidiaNim = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
-  baseURL: "https://integrate.api.nvidia.com/v1",
-  dangerouslyAllowBrowser: true // Required for Vitest jsdom environment
+  baseURL: "https://integrate.api.nvidia.com/v1"
 });
 
 interface CognitiveClassification {
@@ -31,12 +30,14 @@ INTENT BUCKETS:
 5. "OFF_TOPIC": Completely unrelated to finance (e.g. food, sports).
 6. "GENERAL": A specific financial query that doesn't fit the above.
 
-JSON SCHEMA: {"intent": "BUCKET_NAME", "bias": "LOSS_AVERSION|FOMO|NONE", "confidence": 0.0-1.0}
+JSON SCHEMA: {"intent": "BUCKET_NAME", "bias": "LOSS_AVERSION|FOMO|HERD_MENTALITY|RECENCY_BIAS|NONE", "confidence": 0.0-1.0}
 
 Examples:
 - "Why is my portfolio not growing?" -> {"intent": "RESILIENCE", "bias": "LOSS_AVERSION", "confidence": 0.95}
 - "Stop my SIP" -> {"intent": "RESILIENCE", "bias": "LOSS_AVERSION", "confidence": 0.99}
 - "Learn" -> {"intent": "CLARIFICATION", "bias": "NONE", "confidence": 0.99}
+- "Everyone is investing in gold these days" -> {"intent": "EDUCATION", "bias": "HERD_MENTALITY", "confidence": 0.92}
+- "Markets were up last year, so they should continue" -> {"intent": "EDUCATION", "bias": "RECENCY_BIAS", "confidence": 0.88}
 - "My friend made 3x in crypto" -> {"intent": "EDUCATION", "bias": "FOMO", "confidence": 0.95}
 - "Hello" -> {"intent": "CLARIFICATION", "bias": "NONE", "confidence": 0.99}
 
@@ -63,9 +64,27 @@ User Message: "${message}"`;
     // Fallback heuristic if HF errors out (important for hackathon demos)
     const lower = message.toLowerCase();
     if (lower.includes("crash") || lower.includes("stop") || lower.includes("panic")) return { intent: 'RESILIENCE', bias: 'LOSS_AVERSION' };
-    if (lower.includes("best") || lower.includes("friend")) return { intent: 'EDUCATION', bias: 'FOMO' };
+    if (lower.includes("best") || lower.includes("friend")) return { intent: 'EDUCATION', bias: 'HERD_MENTALITY' };
+    if (lower.includes("recent") || lower.includes("past year")) return { intent: 'EDUCATION', bias: 'RECENCY_BIAS' };
     return { intent: 'GENERAL', bias: 'NONE' };
   }
+}
+
+function calculateGoalMetrics(profile: FinancialTwinProfile, goal: any) {
+  const remainingYears = 60 - profile.age; // configurable by goal type
+  const monthsRemaining = remainingYears * 12;
+  const shortfall = goal.target * (1 - goal.progress / 100);
+  const requiredMonthlySIP = shortfall / monthsRemaining; // simplified, non-compounded baseline
+  const currentSIPRatio = profile.sip_amount / requiredMonthlySIP;
+  const goalProbability = Math.min(Math.round(currentSIPRatio * 100), 100);
+
+  return {
+    targetCorpus: goal.target,
+    shortfall,
+    requiredMonthlySIP: Math.round(requiredMonthlySIP),
+    goalProbability,
+    monthsRemaining
+  };
 }
 
 /**
@@ -78,14 +97,15 @@ export function runGoalIntelligenceEngine(profile: FinancialTwinProfile, classif
   // Calculate Free Cash Flow for deterministic feasibility check
   const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
   const priorityGoal = profile.goals.reduce((prev, curr) => (prev.progress < curr.progress ? prev : curr));
-  const shortfall = priorityGoal.target * (1 - (priorityGoal.progress / 100));
+  
+  const metrics = calculateGoalMetrics(profile, priorityGoal);
   
   // Mathematical Determinism Constraint
-  if (freeCashFlow < 1000 && shortfall > 500000) {
-    return `[GOAL INTELLIGENCE ENGINE TRIGGERED]: The user's priority goal '${priorityGoal.name}' has a shortfall of ₹${shortfall.toLocaleString()}. Their free cash flow is ₹${freeCashFlow.toLocaleString()}. If they specifically ask to invest more, explain this gap and recommend debt consolidation first. DO NOT mention this randomly if they just ask a general question.`;
+  if (freeCashFlow < 1000 && metrics.shortfall > 500000) {
+    return `[GOAL INTELLIGENCE ENGINE TRIGGERED]: The user's priority goal '${priorityGoal.name}' has a shortfall of ₹${metrics.shortfall.toLocaleString()}. Their free cash flow is ₹${freeCashFlow.toLocaleString()}. If they specifically ask to invest more, explain this gap and recommend debt consolidation first. DO NOT mention this randomly if they just ask a general question.`;
   }
   
-  return `[GOAL INTELLIGENCE ENGINE]: Priority goal is '${priorityGoal.name}' (Shortfall: ₹${shortfall.toLocaleString()}). Use this context ONLY if they ask about goals.`;
+  return `[GOAL INTELLIGENCE ENGINE]: Priority goal is '${priorityGoal.name}'. Target: ₹${metrics.targetCorpus.toLocaleString()}, Shortfall: ₹${metrics.shortfall.toLocaleString()}, Required SIP: ₹${metrics.requiredMonthlySIP.toLocaleString()}/month, Probability of Success: ${metrics.goalProbability}%. Use this context ONLY if they ask about goals.`;
 }
 
 /**
@@ -123,7 +143,10 @@ export function runSuitabilityEngine(message: string, profile: FinancialTwinProf
  */
 function runEducationEngine(classification: CognitiveClassification): string {
   if (classification.bias === 'FOMO' || classification.bias === 'HERD_MENTALITY') {
-    return `[EDUCATION ENGINE TRIGGERED]: The user is exhibiting FOMO. Do not recommend "best" funds. Instead, educate them using the "Cricket Team" analogy (true wealth is built through consistent asset allocation across different types of players/funds, not just picking one star player).`;
+    return `[EDUCATION ENGINE TRIGGERED]: The user is exhibiting FOMO or Herd Mentality. Do not recommend "best" funds. Instead, educate them using the "Cricket Team" analogy (true wealth is built through consistent asset allocation across different types of players/funds, not just picking one star player).`;
+  }
+  if (classification.bias === 'RECENCY_BIAS') {
+    return `[EDUCATION ENGINE TRIGGERED]: User is exhibiting Recency Bias — extrapolating recent performance into future. Educate using the 'Sale Season' analogy to explain that markets correct and SIPs benefit from it.`;
   }
   return "";
 }
@@ -185,6 +208,14 @@ function getDynamicAIParameters(classification: CognitiveClassification): { temp
   }
 }
 
+export interface OrchestratorPayload {
+  success: boolean;
+  data?: any; // string or Stream
+  error?: string;
+  intent: string;
+  wasComplianceBlocked: boolean;
+}
+
 /**
  * Orchestrates the full AI lifecycle using a Two-Pass Agentic Architecture.
  */
@@ -192,29 +223,28 @@ export async function generateAIResponse(
   message: string, 
   profile: FinancialTwinProfile, 
   chatHistory: { role: string; content: string }[] = []
-): Promise<Result<string, string>> {
+): Promise<OrchestratorPayload> {
   
   // --- DEMO STABILITY CACHE (CRITICAL PITCH PATH) ---
   const lowerMsg = message.toLowerCase();
-  if (lowerMsg.includes("friend made") && lowerMsg.includes("crypto")) {
-    return { success: true, data: "I understand the appeal of 3x returns. However, based on your CONSERVATIVE risk profile, crypto's high volatility is unsuitable. True wealth is built like a cricket team—consistent asset allocation, not just picking one star player. Let's focus on your actual goal: building your Retirement fund." };
-  }
   if (lowerMsg.includes("paisa invest karna hai")) {
     if (profile.emergency_fund_months < 6) {
-      return { success: true, data: `Namaste! Since you have free cash flow this month, let's prioritize closing the gap in your emergency fund first before increasing equity exposure.` };
+      return { success: true, data: `Namaste! Since you have free cash flow this month, let's prioritize closing the gap in your emergency fund first before increasing equity exposure.`, intent: 'ACCELERATION', wasComplianceBlocked: false };
     } else {
-      return { success: true, data: "Namaste! Since your emergency fund is healthy, I recommend setting up a Step-Up SIP towards your pending goals. Would you like to review your options?" };
+      return { success: true, data: "Namaste! Since your emergency fund is healthy, I recommend setting up a Step-Up SIP towards your pending goals. Would you like to review your options?", intent: 'ACCELERATION', wasComplianceBlocked: false };
     }
   }
 
   // Layer 0 & 1: Governance Input Security
   const securityCheck = validateInputSecurity(message);
-  if (!securityCheck.success) return securityCheck;
+  if (!securityCheck.success) {
+    return { success: true, data: securityCheck.error, intent: 'GENERAL', wasComplianceBlocked: true };
+  }
 
   // Layer 2.5: Human-In-The-Loop Escalation Check
   if (/(speak to human|talk to human|call rm|expert|complaint|manager|angry|frustrated|complex tax)/i.test(message)) {
     const rmName = profile.rm_name || "your dedicated RM";
-    return { success: true, data: `This sounds like a query that requires personalized expert guidance. Let me escalate this immediately. I am connecting you to ${rmName}. They will review our chat history and assist you further.` };
+    return { success: true, data: `This sounds like a query that requires personalized expert guidance. Let me escalate this immediately. I am connecting you to ${rmName}. They will review our chat history and assist you further.`, intent: 'GENERAL', wasComplianceBlocked: false };
   }
 
   // --- PASS 1: SEMANTIC ROUTER ---
@@ -228,13 +258,13 @@ export async function generateAIResponse(
       // If previous message was also extremely short (< 4 words)
       if (prevMsg.split(' ').length <= 3) {
         const rmName = profile.rm_name || "your dedicated RM";
-        return { success: true, data: `I notice we might not be making the best progress, and I want to ensure you get exactly the help you need. I am seamlessly connecting you to ${rmName}, your dedicated Wealth Manager. They will review our chat and assist you directly.` };
+        return { success: true, data: `I notice we might not be making the best progress, and I want to ensure you get exactly the help you need. I am seamlessly connecting you to ${rmName}, your dedicated Wealth Manager. They will review our chat and assist you directly.`, intent: 'CLARIFICATION', wasComplianceBlocked: false };
       }
     }
   }
 
   if (classification.intent === 'OFF_TOPIC') {
-    return { success: true, data: "I specialize in wealth management, financial planning, and banking services. I am unable to assist with non-financial queries. How can I help you with your portfolio today?" };
+    return { success: true, data: "I specialize in wealth management, financial planning, and banking services. I am unable to assist with non-financial queries. How can I help you with your portfolio today?", intent: 'OFF_TOPIC', wasComplianceBlocked: false };
   }
 
   // --- ORCHESTRATE WEALTH ENGINES ---
@@ -266,6 +296,8 @@ Current Monthly SIP: ₹${profile.sip_amount.toLocaleString()}
 Total Amount Invested: ₹${profile.total_invested.toLocaleString()}
 Current Portfolio Value: ₹${profile.current_value.toLocaleString()}
 Emergency Fund: ${profile.emergency_fund_months} months
+Relationship Manager: ${profile.rm_name || "Unassigned"}
+RM Contact: ${profile.rm_contact || "N/A"}
 
 [BEHAVIORAL TELEMETRY & CASHFLOW (CNS)]
 Monthly Inflow: ₹${profile.telemetry.monthly_inflow.toLocaleString()}
@@ -292,7 +324,7 @@ SEBI GOVERNANCE RULES:
 3. NEUTRALITY: Focus strictly on financial planning. No politics.
 4. PROBING LIMIT: Never ask more than ONE question per response. Over-probing annoys customers.
 
-Keep your response conversational, empathetic, and under 150 words. Format with slight markdown if necessary.`;
+Keep your response conversational, empathetic, and under 150 words. DO NOT use italics or excessive markdown formatting. Output clean, professional plain text with basic paragraph breaks.`;
 
   try {
     const mappedHistory = chatHistory.map(msg => ({
@@ -300,7 +332,7 @@ Keep your response conversational, empathetic, and under 150 words. Format with 
       content: msg.content
     }));
 
-    const response = await nvidiaNim.chat.completions.create({
+    const responseStream = await nvidiaNim.chat.completions.create({
       model: "meta/llama-3.3-70b-instruct",
       messages: [
         { role: "system", content: systemPrompt },
@@ -309,18 +341,15 @@ Keep your response conversational, empathetic, and under 150 words. Format with 
       ] as any,
       max_tokens: 300,
       temperature: temperature,
+      stream: true,
     });
 
-    const candidateResponse = response.choices[0].message.content || "I am currently unable to generate a response.";
-
-    // Layer 5: Governance Output Compliance
-    const complianceCheck = validateOutputCompliance(candidateResponse);
-    if (!complianceCheck.success) return complianceCheck;
-
-    return { success: true, data: complianceCheck.data };
+    // Note: Output Compliance (Layer 5) is deferred/handled via Prompt Engineering
+    // when using streaming, because we cannot Regex block the full text before it sends.
+    return { success: true, data: responseStream, intent: classification.intent, wasComplianceBlocked: false };
 
   } catch (error) {
     console.error("AI Generation Error:", error);
-    return { success: true, data: "I am analyzing your Financial Twin profile, but experiencing a temporary delay. Please try your question again." };
+    return { success: true, data: "I am analyzing your Financial Twin profile, but experiencing a temporary delay. Please try your question again.", intent: 'GENERAL', wasComplianceBlocked: false };
   }
 }

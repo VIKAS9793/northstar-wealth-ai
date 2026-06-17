@@ -83,8 +83,8 @@ export const mockPersonas: FinancialTwinProfile[] = [
       sip_health_status: "Consistent",
       cashflow_profile: "Comfortable"
     },
-    rm_name: "Amit Desai",
-    rm_contact: "amit.desai@demo.wealth.com",
+    rm_name: "Sanjay Mehta",
+    rm_contact: "sanjay.mehta@demo.wealth.com",
     avatar_url: "/anil.png"
   }
 ];

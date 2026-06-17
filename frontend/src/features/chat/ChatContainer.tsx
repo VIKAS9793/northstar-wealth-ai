@@ -28,6 +28,8 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
   const [avatarState, setAvatarState] = useState<AvatarState>('IDLE');
   
   const scrollRef = useRef<HTMLDivElement>(null);
+  const streamTextRef = useRef<string>("");
+  const isSendingRef = useRef<boolean>(false);
   const { playSound } = useAudio();
 
   useEffect(() => {
@@ -56,46 +58,76 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
 
   const handleSend = async (overrideText?: string) => {
     const textToSend = overrideText || input.trim();
-    if (!textToSend || isLoading) return;
+    if (!textToSend || isLoading || isSendingRef.current) return;
 
+    isSendingRef.current = true;
+    streamTextRef.current = ""; // Reset stream buffer
+    
     setMessages(prev => [...prev, { role: "user", content: textToSend }]);
     setInput("");
     setIsLoading(true);
     playSound('send');
 
-    // --- RESILIENCE INTERCEPTION ---
-    // If the input suggests panic or SIP stoppage, we trigger the COACHING state visually BEFORE the response arrives.
-    const isResilienceEvent = textToSend.toLowerCase().includes("crash") || textToSend.toLowerCase().includes("stop") || textToSend.toLowerCase().includes("panic");
-    
-    if (isResilienceEvent) {
-      dispatchAvatarEvent('RESILIENCE_FLAG'); // Moves directly to COACHING
-    } else {
-      dispatchAvatarEvent('MESSAGE_SENT'); // Moves to THINKING
-    }
+    dispatchAvatarEvent('MESSAGE_SENT'); // Moves to THINKING
 
     try {
       // Map current messages as history (excluding the new message being sent)
       const chatHistory = messages.map(m => ({ role: m.role, content: m.content }));
 
+      // Add placeholder for the AI response
+      setMessages(prev => [...prev, { role: "ai", content: "" }]);
+
       const result = await sendChatMessage({
         message: textToSend,
         customerProfile: customer,
-        chatHistory
+        chatHistory,
+        onMetadata: (intent, wasComplianceBlocked) => {
+          setIsLoading(false); // Stop typing indicator as soon as stream starts
+          
+          if (wasComplianceBlocked) {
+            playSound('alert');
+            dispatchAvatarEvent('COMPLIANCE_TRIGGER');
+          } else if (intent === 'RESILIENCE') {
+            playSound('stress'); // Calm, grounding sound
+            dispatchAvatarEvent('RESILIENCE_FLAG');
+          } else if (intent === 'ACCELERATION') {
+            playSound('happy');
+            dispatchAvatarEvent('RESPONSE_READY');
+          } else if (intent === 'EDUCATION') {
+            playSound('confirmation');
+            dispatchAvatarEvent('RESPONSE_READY');
+          } else {
+            playSound('receive');
+            dispatchAvatarEvent('RESPONSE_READY');
+          }
+        },
+        onChunk: (text) => {
+          streamTextRef.current += text;
+          const currentFullText = streamTextRef.current;
+          
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastIndex = newMessages.length - 1;
+            newMessages[lastIndex] = {
+              ...newMessages[lastIndex],
+              content: currentFullText
+            };
+            return newMessages;
+          });
+        }
       });
 
-      // Move to speaking when response is ready
-      if (!isResilienceEvent) {
+      if (!result.success) {
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1].content = "I am experiencing a temporary connection issue. Please try again.";
+          return newMessages;
+        });
         dispatchAvatarEvent('RESPONSE_READY');
-      }
-      
-      if (result.success) {
-        setMessages(prev => [...prev, { role: "ai", content: result.data }]);
-        playSound('receive');
-      } else {
-        setMessages(prev => [...prev, { role: "ai", content: "I am experiencing a temporary connection issue. Please try again." }]);
+        setIsLoading(false);
       }
 
-      // Revert to IDLE after simulating reading time (or just immediately after it renders)
+      // Revert to IDLE after simulating reading time
       setTimeout(() => {
         dispatchAvatarEvent('RESPONSE_COMPLETE');
       }, 2000);
@@ -106,6 +138,7 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
       dispatchAvatarEvent('RESPONSE_COMPLETE');
     } finally {
       setIsLoading(false);
+      isSendingRef.current = false;
     }
   };
 
@@ -147,8 +180,8 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
             <button onClick={() => handleQuickAction("Emergency Plan")} className="shrink-0 px-4 py-2 bg-brand-light border border-slate-200 rounded-full text-xs font-semibold text-brand-navy hover:bg-slate-200 transition-colors">
               📉 Emergency Plan
             </button>
-            <button onClick={() => handleQuickAction("Learn")} className="shrink-0 px-4 py-2 bg-brand-light border border-slate-200 rounded-full text-xs font-semibold text-brand-navy hover:bg-slate-200 transition-colors">
-              📚 Learn
+            <button onClick={() => handleQuickAction("Explain SIP to me")} className="shrink-0 px-4 py-2 bg-brand-light border border-slate-200 rounded-full text-xs font-semibold text-brand-navy hover:bg-slate-200 transition-colors">
+              📚 Explain SIP to me
             </button>
           </div>
         )}
@@ -175,7 +208,7 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
         {/* SEBI Automated Tool Disclosure */}
         <div className="w-full text-center py-2 px-4 bg-slate-50 border-t border-slate-100">
           <p className="text-[10px] text-slate-400 font-medium leading-tight">
-            SEBI Mandated Disclosure: Dhan is an automated Investment Advisory tool. Advice is algorithmically generated based on your declared risk profile. The Bank retains full responsibility.
+            SEBI Mandated Disclosure: This is an automated algorithmic Investment Advisory tool. Recommendations are based on your declared risk profile. Mutual Fund investments are subject to market risks, read all scheme related documents carefully.
           </p>
         </div>
       </div>

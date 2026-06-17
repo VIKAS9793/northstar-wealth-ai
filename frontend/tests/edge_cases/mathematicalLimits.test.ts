@@ -14,7 +14,7 @@ describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
       ]
     };
 
-    const result = runGoalIntelligenceEngine(mockProfile);
+    const result = runGoalIntelligenceEngine(mockProfile, { intent: 'GENERAL', bias: 'NONE' });
     expect(result).toContain("gap and recommend debt consolidation");
     expect(result).toContain("free cash flow is ₹500");
   });
@@ -31,7 +31,7 @@ describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
       ]
     };
 
-    const result = runGoalIntelligenceEngine(mockProfile);
+    const result = runGoalIntelligenceEngine(mockProfile, { intent: 'GENERAL', bias: 'NONE' });
     expect(result).not.toContain("gap and recommend debt consolidation");
     expect(result).toContain("Priority goal is 'Car'");
   });

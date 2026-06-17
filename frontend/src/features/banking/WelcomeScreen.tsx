@@ -1,19 +1,36 @@
-import React from 'react';
-import { DhanAvatar } from '@/components/avatar/DhanAvatar';
+import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { ArrowRight } from 'lucide-react';
+
+const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
 interface Props {
   onNext: () => void;
 }
 
 export function WelcomeScreen({ onNext }: Props) {
+  const [animationData, setAnimationData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/lottie/wealth_hero_ui.json')
+      .then(res => res.json())
+      .then(data => setAnimationData(data))
+      .catch(err => console.error("Failed to load hero animation:", err));
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-brand-light text-brand-navy p-6 relative overflow-y-auto w-full">
       {/* Content Group */}
       <div className="z-10 flex flex-col items-center max-w-lg w-full px-4 gap-6">
-        {/* Avatar Container */}
-        <div className="w-full">
-          <DhanAvatar state="IDLE" customerName="Investor" isTransparent={true} />
+        {/* Hero Animation Container */}
+        <div className="w-full max-w-xs mx-auto flex justify-center h-64">
+          {animationData && (
+            <Lottie 
+              animationData={animationData} 
+              loop={true} 
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+            />
+          )}
         </div>
 
         {/* Greeting Text */}

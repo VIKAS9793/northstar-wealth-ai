@@ -29,7 +29,7 @@ export function ChatBubble({ role, content }: MessageProps): React.ReactElement 
   // AI Message
   return (
     <div className="self-start max-w-[85%] flex items-end gap-3 mb-4">
-      <div className="bg-white border-l-4 border-l-teal-500 border-t border-r border-b border-gray-200 p-4 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-800 leading-relaxed prose prose-sm prose-indigo">
+      <div className="bg-white border-l-4 border-l-teal-500 border-t border-r border-b border-gray-200 p-4 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-800 leading-relaxed prose prose-sm prose-indigo prose-em:not-italic prose-em:font-medium prose-strong:font-semibold">
         <p className="font-bold text-xs text-teal-700 mb-1">Dhan:</p>
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>

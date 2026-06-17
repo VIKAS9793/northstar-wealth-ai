@@ -52,46 +52,60 @@ export function DhanAvatar({ state, customerName, isTransparent = false }: DhanA
   if (state === "THINKING") statusColor = "bg-purple-400";
   if (state === "COACHING") statusColor = "bg-rose-500"; // Resilience Flag triggers warm/urgent state
 
-  return (
-    <div className={`flex flex-col items-center justify-center w-full shrink-0 overflow-hidden ${isTransparent ? 'bg-transparent py-4' : 'h-[180px] bg-slate-50 border-b border-slate-200 shadow-inner'}`}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={state}
-          initial={{ opacity: 0, scale: 0.95, y: 5 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 1.05, y: -5 }}
-          transition={{ duration: 0.3 }}
-          className={`relative w-24 h-24 rounded-full overflow-hidden border-4 shadow-xl flex items-center justify-center shrink-0 ${state === 'COACHING' ? 'border-rose-200 bg-rose-50' : 'border-white bg-indigo-50'}`}
-        >
-          {/* LAYER 1: The Reactive Lottie Background (Aura) */}
-          <div className="absolute inset-0 z-0 flex items-center justify-center opacity-80 scale-125">
-            {animationData && (
-              <Lottie 
-                animationData={animationData} 
-                loop={true} 
-                style={{ width: '150%', height: '150%' }} 
-              />
-            )}
-          </div>
-          
-          {/* LAYER 2: The Actual Character/Face (Foreground) */}
-          <div className="absolute inset-0 z-10 flex items-center justify-center p-1">
-            <img 
-              src="/dhan_avatar.png" 
-              alt="Dhan Companion" 
-              className="w-full h-full object-cover rounded-full drop-shadow-md bg-white"
-            />
-          </div>
+  const stateLabel = {
+    IDLE: 'Online',
+    LISTENING: 'Listening...',
+    THINKING: 'Analyzing...',
+    SPEAKING: 'Speaking...',
+    COACHING: 'Coaching You...'
+  }[state];
 
-          {/* Status Indicator Dot */}
-          <div className={`absolute bottom-0 right-1 z-20 w-3.5 h-3.5 rounded-full border-2 border-white ${statusColor} ${state === 'THINKING' ? 'animate-pulse' : ''}`}></div>
-        </motion.div>
-      </AnimatePresence>
+  return (
+    <div className={`flex flex-row items-center w-full shrink-0 ${isTransparent ? 'bg-transparent py-2' : 'bg-white border-b border-slate-100 shadow-sm py-3 px-6 gap-4 z-10'}`}>
       
-      <div className="mt-3 text-center">
-        <h2 className={`text-[20px] font-bold leading-tight ${isTransparent ? 'text-white' : 'text-slate-800'}`}>Dhan</h2>
-        <p className={`text-[10px] font-semibold uppercase tracking-widest mt-0.5 ${isTransparent ? 'text-violet-300' : 'text-slate-500'}`}>Wealth Companion</p>
+      {/* Avatar + Status Wrapper */}
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={state}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.3 }}
+            className={`relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 shadow-sm flex items-center justify-center shrink-0 ${state === 'COACHING' ? 'border-rose-200 bg-rose-50' : 'border-slate-100 bg-slate-50'}`}
+          >
+            {/* Main Scenic Lottie Animation */}
+            <div className="absolute inset-0 z-10 flex items-center justify-center p-1">
+              {animationData && (
+                <Lottie 
+                  animationData={animationData} 
+                  loop={true} 
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                />
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+        
+        {/* Status Indicator Dot (Moved outside overflow-hidden) */}
+        <div className={`absolute bottom-0 right-0 z-20 w-4 h-4 rounded-full border-2 border-white ${statusColor} ${state === 'THINKING' ? 'animate-pulse' : ''}`}></div>
       </div>
+      
+      {/* Text Info block (Horizontal) */}
+      <div className="flex flex-col justify-center text-left">
+        <h2 className={`text-lg font-bold leading-none ${isTransparent ? 'text-white' : 'text-slate-800'}`}>Dhan</h2>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <p className={`text-[10px] font-bold uppercase tracking-wider ${state === 'COACHING' ? 'text-rose-500' : isTransparent ? 'text-violet-300' : 'text-slate-500'}`}>
+            {stateLabel}
+          </p>
+          {state === 'IDLE' && customerName && (
+            <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+              • Connected to {customerName}
+            </span>
+          )}
+        </div>
+      </div>
+      
     </div>
   );
 }
