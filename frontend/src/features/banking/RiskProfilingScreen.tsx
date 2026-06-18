@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { FinancialTwinProfile } from '@/features/financial-twin/types';
 import { mockPersonas } from '@/features/financial-twin/mockData';
 import { AlertCircle, ShieldCheck } from 'lucide-react';
@@ -41,7 +42,7 @@ export function RiskProfilingScreen({ onSelectProfile }: Props) {
               {/* Avatar - Left side */}
               <div className="w-12 h-12 rounded-full border-2 border-brand-navy/10 group-hover:border-brand-navy transition-all flex items-center justify-center bg-brand-light shrink-0 overflow-hidden mr-3">
                 {persona.avatar_url ? (
-                  <img src={persona.avatar_url} alt={persona.name} className="w-full h-full object-cover" />
+                  <Image src={persona.avatar_url} alt={persona.name} width={48} height={48} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-sm font-medium text-brand-navy">{persona.name.charAt(0)}</span>
                 )}

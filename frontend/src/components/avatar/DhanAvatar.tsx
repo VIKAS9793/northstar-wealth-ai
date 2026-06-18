@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+"use client";
+import React from "react";
 import dynamic from "next/dynamic";
-import { motion, AnimatePresence } from "framer-motion";
 import { AvatarState } from "./avatarStates";
 
-// Dynamically import Lottie to avoid SSR issues
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
+type LottieAnimationData = Record<string, unknown>;
 
 interface DhanAvatarProps {
   state: AvatarState;
@@ -17,33 +17,48 @@ interface DhanAvatarProps {
  * A purely presentational component that renders the Lottie animation mapped to the current state,
  * complete with smooth Framer Motion transitions and status indicators.
  */
+const AVATAR_FILES: Record<AvatarState, string> = {
+  IDLE: '/lottie/avatar_idle.json',
+  LISTENING: '/lottie/avatar_listening.json',
+  THINKING: '/lottie/avatar_thinking.json',
+  SPEAKING: '/lottie/avatar_speaking.json',
+  COACHING: '/lottie/avatar_coaching.json'
+};
+
+const preloadedCache: Partial<Record<AvatarState, LottieAnimationData>> = {};
+
 export function DhanAvatar({ state, customerName, isTransparent = false }: DhanAvatarProps): React.ReactElement {
-  const [animationData, setAnimationData] = useState<any>(null);
+  const [, forceCacheRefresh] = React.useReducer((version: number) => version + 1, 0);
+  const animationData = preloadedCache[state] ?? null;
+  
+  React.useEffect(() => {
+    // Preload all animations asynchronously so they are instantly available
+    Object.entries(AVATAR_FILES).forEach(async ([key, path]) => {
+      const avatarState = key as AvatarState;
+      if (!preloadedCache[avatarState]) {
+        try {
+          const res = await fetch(path);
+          if (res.ok) {
+            preloadedCache[avatarState] = await res.json() as LottieAnimationData;
+            forceCacheRefresh();
+          }
+        } catch (e) {
+          console.error(`Failed to preload ${path}`, e);
+        }
+      }
+    });
+  }, []);
 
-  // Map state to the appropriate JSON file
-  useEffect(() => {
-    let lottieFile = "/lottie/avatar_idle.json";
-    
-    switch(state) {
-      case "IDLE":
-      case "LISTENING":
-        lottieFile = "/lottie/avatar_idle.json"; // Listening can be the same as idle for now, or a specific listening loop if available.
-        break;
-      case "THINKING":
-        lottieFile = "/lottie/avatar_thinking.json";
-        break;
-      case "SPEAKING":
-        lottieFile = "/lottie/avatar_speaking.json";
-        break;
-      case "COACHING":
-        lottieFile = "/lottie/avatar_speaking.json"; // Assuming coaching uses a speaking animation variant
-        break;
-    }
+  React.useEffect(() => {
+    if (preloadedCache[state]) return;
 
-    fetch(lottieFile)
+    fetch(AVATAR_FILES[state] || AVATAR_FILES.IDLE)
       .then(res => res.json())
-      .then(data => setAnimationData(data))
-      .catch(err => console.error("Failed to load Lottie animation:", err));
+      .then(data => {
+        preloadedCache[state] = data as LottieAnimationData;
+        forceCacheRefresh();
+      })
+      .catch(e => console.error(e));
   }, [state]);
 
   // Determine status color based on state
@@ -65,30 +80,23 @@ export function DhanAvatar({ state, customerName, isTransparent = false }: DhanA
       
       {/* Avatar + Status Wrapper */}
       <div className="relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={state}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.3 }}
-            className={`relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 shadow-sm flex items-center justify-center shrink-0 ${state === 'COACHING' ? 'border-rose-200 bg-rose-50' : 'border-slate-100 bg-slate-50'}`}
-          >
-            {/* Main Scenic Lottie Animation */}
-            <div className="absolute inset-0 z-10 flex items-center justify-center p-1">
-              {animationData && (
-                <Lottie 
-                  animationData={animationData} 
-                  loop={true} 
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-                />
-              )}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+        <div
+          className={`relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 shadow-sm flex items-center justify-center shrink-0 transition-colors duration-300 ${state === 'COACHING' ? 'border-rose-200 bg-rose-50' : 'border-slate-100 bg-slate-50'}`}
+        >
+          {/* Main Scenic Lottie Animation */}
+          <div className="absolute inset-0 z-10 flex items-center justify-center p-1 w-full h-full">
+            {animationData && (
+              <Lottie 
+                animationData={animationData} 
+                loop={true} 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            )}
+          </div>
+        </div>
         
         {/* Status Indicator Dot (Moved outside overflow-hidden) */}
-        <div className={`absolute bottom-0 right-0 z-20 w-4 h-4 rounded-full border-2 border-white ${statusColor} ${state === 'THINKING' ? 'animate-pulse' : ''}`}></div>
+        <div className={`absolute bottom-0 right-0 z-20 w-4 h-4 rounded-full border-2 border-white ${statusColor} transition-colors duration-300 ${state === 'THINKING' ? 'animate-pulse' : ''}`}></div>
       </div>
       
       {/* Text Info block (Horizontal) */}

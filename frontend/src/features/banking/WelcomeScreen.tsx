@@ -3,18 +3,19 @@ import dynamic from 'next/dynamic';
 import { ArrowRight } from 'lucide-react';
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
+type LottieAnimationData = Record<string, unknown>;
 
 interface Props {
   onNext: () => void;
 }
 
 export function WelcomeScreen({ onNext }: Props) {
-  const [animationData, setAnimationData] = useState<any>(null);
+  const [animationData, setAnimationData] = useState<LottieAnimationData | null>(null);
 
   useEffect(() => {
     fetch('/lottie/wealth_hero_ui.json')
       .then(res => res.json())
-      .then(data => setAnimationData(data))
+      .then(data => setAnimationData(data as LottieAnimationData))
       .catch(err => console.error("Failed to load hero animation:", err));
   }, []);
 
@@ -49,7 +50,7 @@ export function WelcomeScreen({ onNext }: Props) {
           onClick={onNext}
           className="group flex items-center gap-3 bg-brand-navy text-white px-8 py-3.5 rounded-md font-medium text-lg hover:bg-brand-navy-light transition-all duration-300 transform active:scale-95 shadow-md hover:shadow-lg w-full max-w-xs justify-center mt-4"
         >
-          Let's Begin
+          Let&apos;s Begin
           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>

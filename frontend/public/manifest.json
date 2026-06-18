@@ -1,0 +1,9 @@
+{
+  "name": "NorthStar Wealth Companion",
+  "short_name": "NorthStar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#003366",
+  "icons": [{ "src": "/dhan_avatar.png", "sizes": "512x512", "type": "image/png" }]
+}

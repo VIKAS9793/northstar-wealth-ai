@@ -25,6 +25,10 @@ export async function POST(req: Request) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        const keepalive = setInterval(() => {
+          controller.enqueue(encoder.encode(': keepalive\n\n'));
+        }, 8000);
+
         // Send metadata as the first chunk
         const metadata = {
           type: 'metadata',
@@ -35,11 +39,12 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));
 
         // If it was intercepted by a fast-path string return (Governance/Cache/Error)
-        if (!result.success || typeof result.data === 'string') {
+        if (!result.success || typeof result.data === 'string' || !result.data) {
           const text = result.success ? result.data : (result.error || "Error");
           if (text) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', text })}\n\n`));
           }
+          clearInterval(keepalive);
           controller.close();
           return;
         }
@@ -56,6 +61,7 @@ export async function POST(req: Request) {
           console.error("Stream reading error:", streamError);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', text: "\\n[Connection Interrupted]" })}\n\n`));
         } finally {
+          clearInterval(keepalive);
           controller.close();
         }
       }
@@ -64,8 +70,10 @@ export async function POST(req: Request) {
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
 

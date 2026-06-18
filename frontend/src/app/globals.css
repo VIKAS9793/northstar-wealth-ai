@@ -20,9 +20,11 @@
     color: var(--color-foreground);
     background-image: none;
     background-attachment: fixed;
-    min-height: 100vh;
   }
 }
+
+/* Safe-area padding utility for mobile */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
 /* Custom Scrollbar Styling (Clean Enterprise Theme) */
 ::-webkit-scrollbar {

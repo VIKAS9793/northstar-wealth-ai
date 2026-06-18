@@ -33,6 +33,15 @@ export function validateInputSecurity(message: string): Result<string, string> {
     };
   }
 
+  const cryptoTradingRegex = /(bitcoin price|price of bitcoin|crypto price|buy crypto|trade crypto|crypto trading|intraday|trading call)/i;
+  if (cryptoTradingRegex.test(message)) {
+    console.warn("Domain Rejection: Trading or price query intercepted at Layer 1");
+    return {
+      success: false,
+      error: "I am the NorthStar Wealth Companion. I cannot provide trading calls or live crypto price guidance. I can help you understand risk, suitability, and how such choices may affect your long-term financial goals."
+    };
+  }
+
   return { success: true, data: message };
 }
 

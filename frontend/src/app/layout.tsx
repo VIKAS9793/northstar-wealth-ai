@@ -1,13 +1,22 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#003366',
+};
+
 export const metadata: Metadata = {
-  title: "NorthStar Wealth Companion | Hackathon PoC",
-  description: "AI-powered Wealth Management and Financial Resilience Coach.",
+  title: "NorthStar Wealth Companion",
+  description: "AI-powered Digital Relationship Manager for Retail Investors.",
+  manifest: '/manifest.json',
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent' },
 };
 
 /**

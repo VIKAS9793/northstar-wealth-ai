@@ -7,6 +7,8 @@ import { getNextState } from "@/components/avatar/AvatarStateManager";
 import { ChatBubble } from "./ChatBubbles";
 import { sendChatMessage } from "@/services/repositories/chatRepository";
 import { useAudio } from "@/shared/hooks/useAudio";
+import { Send } from "lucide-react";
+import { FinancialTwinProfile } from "@/features/financial-twin/types";
 
 interface Message {
   role: "user" | "ai";
@@ -14,15 +16,58 @@ interface Message {
 }
 
 interface ChatContainerProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  customer: any;
+  customer: FinancialTwinProfile;
   proactiveMessage?: string | null;
 }
 
+const QUICK_ACTIONS = [
+  "Should I stop my SIP?",
+  "Can I afford my home goal?",
+  "What should I do with bonus money?",
+  "My friend made high returns",
+  "Why is my SIP not growing?",
+  "Is my emergency fund enough?"
+] as const;
+
+const MAX_PERSISTED_MESSAGES = 12;
+
+function createInitialMessages(customer: FinancialTwinProfile, proactiveMessage?: string | null): Message[] {
+  return [
+    {
+      role: "ai",
+      content: proactiveMessage || `Namaste ${customer.name.split(' ')[0]}. I'm Dhan, your Wealth Companion. I have reviewed your goals, SIP discipline, safety net, and spending pressure. Pick a concern below or ask me directly.`
+    }
+  ];
+}
+
+function readStoredMessages(storageKey: string): Message[] | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(storageKey);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+
+    const messages = parsed.filter((item): item is Message => (
+      item !== null &&
+      typeof item === "object" &&
+      ((item as Message).role === "ai" || (item as Message).role === "user") &&
+      typeof (item as Message).content === "string"
+    ));
+
+    return messages.length > 0 ? messages.slice(-MAX_PERSISTED_MESSAGES) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps): React.ReactElement {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", content: proactiveMessage || `Namaste ${customer.name.split(' ')[0]} 🙏 I'm Dhan, your Wealth Companion. I've analyzed your Financial Twin profile. You can select a quick topic below or ask me anything directly!` }
-  ]);
+  const storageKey = `northstar-chat:${customer.id}:${proactiveMessage ? "proactive" : "default"}`;
+  const [messages, setMessages] = useState<Message[]>(
+    () => readStoredMessages(storageKey) ?? createInitialMessages(customer, proactiveMessage)
+  );
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [avatarState, setAvatarState] = useState<AvatarState>('IDLE');
@@ -30,13 +75,31 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
   const scrollRef = useRef<HTMLDivElement>(null);
   const streamTextRef = useRef<string>("");
   const isSendingRef = useRef<boolean>(false);
+  const streamRafRef = useRef<number | null>(null);
   const { playSound } = useAudio();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.sessionStorage.setItem(
+      storageKey,
+      JSON.stringify(messages.slice(-MAX_PERSISTED_MESSAGES))
+    );
+  }, [messages, storageKey]);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (streamRafRef.current !== null) {
+        cancelAnimationFrame(streamRafRef.current);
+      }
+    };
+  }, []);
 
   const dispatchAvatarEvent = (event: ConversationEvent) => {
     setAvatarState(prev => getNextState(prev, event));
@@ -53,7 +116,7 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
   };
 
   const handleQuickAction = (text: string) => {
-    setInput(text);
+    handleTyping(text);
   };
 
   const handleSend = async (overrideText?: string) => {
@@ -62,6 +125,10 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
 
     isSendingRef.current = true;
     streamTextRef.current = ""; // Reset stream buffer
+    if (streamRafRef.current !== null) {
+      cancelAnimationFrame(streamRafRef.current);
+      streamRafRef.current = null;
+    }
     
     setMessages(prev => [...prev, { role: "user", content: textToSend }]);
     setInput("");
@@ -72,7 +139,10 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
 
     try {
       // Map current messages as history (excluding the new message being sent)
-      const chatHistory = messages.map(m => ({ role: m.role, content: m.content }));
+      const fullHistory = messages.map(m => ({ role: m.role, content: m.content }));
+      
+      // Implement sliding context window of last 6 exchanges (12 messages)
+      const chatHistory = fullHistory.length > 12 ? fullHistory.slice(-12) : fullHistory;
 
       // Add placeholder for the AI response
       setMessages(prev => [...prev, { role: "ai", content: "" }]);
@@ -103,16 +173,20 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
         },
         onChunk: (text) => {
           streamTextRef.current += text;
-          const currentFullText = streamTextRef.current;
           
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastIndex = newMessages.length - 1;
-            newMessages[lastIndex] = {
-              ...newMessages[lastIndex],
-              content: currentFullText
-            };
-            return newMessages;
+          if (streamRafRef.current) cancelAnimationFrame(streamRafRef.current);
+          
+          streamRafRef.current = requestAnimationFrame(() => {
+            const currentFullText = streamTextRef.current;
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastIndex = newMessages.length - 1;
+              newMessages[lastIndex] = {
+                ...newMessages[lastIndex],
+                content: currentFullText
+              };
+              return newMessages;
+            });
           });
         }
       });
@@ -141,8 +215,6 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
       isSendingRef.current = false;
     }
   };
-
-  const isHomeView = messages.length === 0;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden w-full relative bg-slate-50">
@@ -174,15 +246,16 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
         {/* Horizontal Scrollable Chips */}
         {messages.length === 1 && !isLoading && (
           <div className="flex overflow-x-auto gap-2 px-4 py-3 no-scrollbar border-b border-slate-100">
-            <button onClick={() => handleQuickAction("Goals")} className="shrink-0 px-4 py-2 bg-brand-light border border-slate-200 rounded-full text-xs font-semibold text-brand-navy hover:bg-slate-200 transition-colors">
-              🎯 Goals
-            </button>
-            <button onClick={() => handleQuickAction("Emergency Plan")} className="shrink-0 px-4 py-2 bg-brand-light border border-slate-200 rounded-full text-xs font-semibold text-brand-navy hover:bg-slate-200 transition-colors">
-              📉 Emergency Plan
-            </button>
-            <button onClick={() => handleQuickAction("Explain SIP to me")} className="shrink-0 px-4 py-2 bg-brand-light border border-slate-200 rounded-full text-xs font-semibold text-brand-navy hover:bg-slate-200 transition-colors">
-              📚 Explain SIP to me
-            </button>
+            {QUICK_ACTIONS.map(action => (
+              <button
+                key={action}
+                type="button"
+                onClick={() => handleQuickAction(action)}
+                className="shrink-0 px-4 py-2 bg-brand-light border border-slate-200 rounded-full text-xs font-semibold text-brand-navy hover:bg-slate-200 transition-colors"
+              >
+                {action}
+              </button>
+            ))}
           </div>
         )}
 
@@ -195,20 +268,23 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
             placeholder="Ask about your SIPs, life goals, or market concerns..."
             className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-full py-2.5 px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-brand-navy/20 focus:border-brand-navy transition-all"
             disabled={isLoading}
+            aria-label="Ask Dhan about your SIPs, goals, or money concerns"
           />
           <button 
+            type="button"
             onClick={() => handleSend()}
             disabled={isLoading || !input.trim()}
+            aria-label="Send message"
             className="absolute right-5 top-4 w-8 h-8 flex items-center justify-center bg-brand-navy text-brand-gold rounded-full hover:bg-brand-navy/90 transition-colors disabled:opacity-50 disabled:bg-slate-300 disabled:text-white"
           >
-            <svg className="w-4 h-4 translate-x-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" /></svg>
+            <Send className="w-4 h-4 translate-x-[1px]" aria-hidden="true" />
           </button>
         </div>
         
         {/* SEBI Automated Tool Disclosure */}
         <div className="w-full text-center py-2 px-4 bg-slate-50 border-t border-slate-100">
           <p className="text-[10px] text-slate-400 font-medium leading-tight">
-            SEBI Mandated Disclosure: This is an automated algorithmic Investment Advisory tool. Recommendations are based on your declared risk profile. Mutual Fund investments are subject to market risks, read all scheme related documents carefully.
+            Disclosure: This prototype provides educational, goal-oriented guidance based on the declared risk profile. Mutual fund investments are subject to market risks; read all scheme related documents carefully.
           </p>
         </div>
       </div>

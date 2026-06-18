@@ -79,7 +79,7 @@ export function WealthPortfolioSnapshot({ profile }: WealthPortfolioSnapshotProp
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Active Goals</p>
               <div className="space-y-3">
                 {profile.goals.map((goal, idx) => {
-                  const progressPct = Math.min(100, (goal.progress / goal.target) * 100);
+                  const progressPct = Math.min(100, Math.max(0, goal.progressPercent));
                   return (
                     <div key={idx}>
                       <div className="flex justify-between text-xs mb-1">

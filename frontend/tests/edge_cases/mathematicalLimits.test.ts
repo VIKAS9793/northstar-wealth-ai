@@ -3,14 +3,19 @@ import { runGoalIntelligenceEngine } from '../../src/services/ai/orchestrator';
 
 describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
   it('should deterministically reject goals if free cash flow is too low', () => {
-    const mockProfile: any = {
+    const mockProfile = {
+      age: 35,
+      sip_amount: 5000,
       telemetry: {
         monthly_inflow: 50000,
         monthly_outflow: 40000,
-        total_emis: 9500 // FCF = 500
+        total_emis: 9500, // FCF = 500
+        discretionary_spend: 5000,
+        sip_health_status: "Consistent" as const,
+        cashflow_profile: "Comfortable" as const
       },
       goals: [
-        { name: 'Retirement', target: 20000000, progress: 2 } // Shortfall is huge
+        { name: 'Retirement', target: 20000000, progressPercent: 2 } // Shortfall is huge
       ]
     };
 
@@ -20,14 +25,19 @@ describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
   });
 
   it('should allow goals if free cash flow is healthy', () => {
-    const mockProfile: any = {
+    const mockProfile = {
+      age: 35,
+      sip_amount: 25000,
       telemetry: {
         monthly_inflow: 200000,
         monthly_outflow: 100000,
-        total_emis: 10000 // FCF = 90000
+        total_emis: 10000, // FCF = 90000
+        discretionary_spend: 25000,
+        sip_health_status: "Consistent" as const,
+        cashflow_profile: "Comfortable" as const
       },
       goals: [
-        { name: 'Car', target: 1000000, progress: 50 }
+        { name: 'Car', target: 1000000, progressPercent: 50 }
       ]
     };
 

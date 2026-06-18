@@ -1,6 +1,5 @@
 import OpenAI from "openai";
-import { FinancialTwinProfile } from "@/features/financial-twin/types";
-import { Result } from "@/shared/types/Result";
+import { FinancialTwinProfile, Goal } from "@/features/financial-twin/types";
 import { validateInputSecurity, validateOutputCompliance } from "@/features/governance/services";
 
 // Initialize NVIDIA NIM Client (OpenAI Compatible)
@@ -10,70 +9,50 @@ const nvidiaNim = new OpenAI({
 });
 
 interface CognitiveClassification {
-  intent: 'RESILIENCE' | 'EDUCATION' | 'ACCELERATION' | 'GENERAL' | 'OFF_TOPIC' | 'CLARIFICATION';
+  intent: 'RESILIENCE' | 'EDUCATION' | 'ACCELERATION' | 'GENERAL' | 'OFF_TOPIC' | 'CLARIFICATION' | 'GOAL_PLANNING';
   bias: 'LOSS_AVERSION' | 'FOMO' | 'HERD_MENTALITY' | 'RECENCY_BIAS' | 'NONE';
 }
 
+type GoalEngineProfile = Pick<FinancialTwinProfile, 'age' | 'sip_amount' | 'telemetry' | 'goals'>;
+type SuitabilityProfile = Pick<FinancialTwinProfile, 'age' | 'risk_profile'>;
+type ChatRole = 'user' | 'assistant' | 'system';
+type StreamTextChunk = { choices: Array<{ delta?: { content?: string } }> };
+
 /**
- * PASS 1: Semantic Intent Router
- * A robust few-shot LLM router replacing the naive classifier.
+ * PASS 1: Semantic Intent Router (Fast Heuristic)
  */
-export async function classifyBehavioralIntent(message: string): Promise<CognitiveClassification> {
-  const prompt = `You are a strict Semantic Router for a Wealth Management AI.
-Categorize the user's message into EXACTLY ONE of the following INTENT buckets. Output ONLY valid JSON.
-
-INTENT BUCKETS:
-1. "RESILIENCE": User expresses fear, market panic, wants to stop SIPs, or withdraw funds.
-2. "EDUCATION": User asks about concepts, "best" funds, comparisons, or what friends are doing (FOMO).
-3. "ACCELERATION": User has extra money (bonus, windfall) and wants to invest more.
-4. "CLARIFICATION": The message is too short, vague, or ambiguous to classify (e.g. "Hi", "Learn", "Help", "Yes").
-5. "OFF_TOPIC": Completely unrelated to finance (e.g. food, sports).
-6. "GENERAL": A specific financial query that doesn't fit the above.
-
-JSON SCHEMA: {"intent": "BUCKET_NAME", "bias": "LOSS_AVERSION|FOMO|HERD_MENTALITY|RECENCY_BIAS|NONE", "confidence": 0.0-1.0}
-
-Examples:
-- "Why is my portfolio not growing?" -> {"intent": "RESILIENCE", "bias": "LOSS_AVERSION", "confidence": 0.95}
-- "Stop my SIP" -> {"intent": "RESILIENCE", "bias": "LOSS_AVERSION", "confidence": 0.99}
-- "Learn" -> {"intent": "CLARIFICATION", "bias": "NONE", "confidence": 0.99}
-- "Everyone is investing in gold these days" -> {"intent": "EDUCATION", "bias": "HERD_MENTALITY", "confidence": 0.92}
-- "Markets were up last year, so they should continue" -> {"intent": "EDUCATION", "bias": "RECENCY_BIAS", "confidence": 0.88}
-- "My friend made 3x in crypto" -> {"intent": "EDUCATION", "bias": "FOMO", "confidence": 0.95}
-- "Hello" -> {"intent": "CLARIFICATION", "bias": "NONE", "confidence": 0.99}
-
-User Message: "${message}"`;
-
-  try {
-    const response = await nvidiaNim.chat.completions.create({
-      model: "meta/llama-3.3-70b-instruct",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 150,
-      temperature: 0.0, // Zero temperature for pure deterministic routing
-    });
-    
-    const content = response.choices[0].message.content || "{}";
-    const jsonStr = content.substring(content.indexOf('{'), content.lastIndexOf('}') + 1);
-    const parsed = JSON.parse(jsonStr) as CognitiveClassification & { confidence?: number };
-    
-    return {
-      intent: parsed.intent || 'GENERAL',
-      bias: parsed.bias || 'NONE'
-    };
-  } catch (error) {
-    console.warn("Classifier Pass failed, falling back to heuristics.", error);
-    // Fallback heuristic if HF errors out (important for hackathon demos)
-    const lower = message.toLowerCase();
-    if (lower.includes("crash") || lower.includes("stop") || lower.includes("panic")) return { intent: 'RESILIENCE', bias: 'LOSS_AVERSION' };
-    if (lower.includes("best") || lower.includes("friend")) return { intent: 'EDUCATION', bias: 'HERD_MENTALITY' };
-    if (lower.includes("recent") || lower.includes("past year")) return { intent: 'EDUCATION', bias: 'RECENCY_BIAS' };
-    return { intent: 'GENERAL', bias: 'NONE' };
-  }
+export function classifyBehavioralIntentFast(message: string): CognitiveClassification {
+  if (/crash|stop sip|panic|withdraw|redeem|scared|worried/i.test(message))
+    return { intent: 'RESILIENCE', bias: 'LOSS_AVERSION' };
+  if (/bonus|extra cash|windfall|paisa invest/i.test(message))
+    return { intent: 'ACCELERATION', bias: 'NONE' };
+  if (/best fund|friend made|crypto|my friend|everyone is/i.test(message))
+    return { intent: 'EDUCATION', bias: 'FOMO' };
+  if (/last year|past year|recent/i.test(message))
+    return { intent: 'EDUCATION', bias: 'RECENCY_BIAS' };
+  if (/sport|cricket|food|recipe|weather/i.test(message))
+    return { intent: 'OFF_TOPIC', bias: 'NONE' };
+  if (message.trim().split(' ').length <= 2)
+    return { intent: 'CLARIFICATION', bias: 'NONE' };
+  if (/home|house|retire|retirement|education|child|corpus|goal|invest|marriage|wealth|emergency fund/i.test(message))
+    return { intent: 'GOAL_PLANNING', bias: 'NONE' };
+  return { intent: 'GENERAL', bias: 'NONE' };
 }
 
-function calculateGoalMetrics(profile: FinancialTwinProfile, goal: any) {
-  const remainingYears = 60 - profile.age; // configurable by goal type
+function calculateGoalMetrics(profile: GoalEngineProfile, goal: Goal) {
+  const GOAL_HORIZONS: Record<string, number> = {
+    'First Home Downpayment': 8,
+    'Home Purchase': 8,
+    'Child Education': 15,
+    'Emergency Fund': 1,
+    'Retirement': Math.max(60 - profile.age, 1),
+    'Wealth Creation': 10,
+    'Marriage Planning': 5,
+    'Passive Income': 10
+  };
+  const remainingYears = GOAL_HORIZONS[goal.name] ?? Math.max(60 - profile.age, 1);
   const monthsRemaining = remainingYears * 12;
-  const shortfall = goal.target * (1 - goal.progress / 100);
+  const shortfall = goal.target * (1 - goal.progressPercent / 100);
   const requiredMonthlySIP = shortfall / monthsRemaining; // simplified, non-compounded baseline
   const currentSIPRatio = profile.sip_amount / requiredMonthlySIP;
   const goalProbability = Math.min(Math.round(currentSIPRatio * 100), 100);
@@ -90,13 +69,13 @@ function calculateGoalMetrics(profile: FinancialTwinProfile, goal: any) {
 /**
  * Pillar 1: Goal Intelligence Engine
  */
-export function runGoalIntelligenceEngine(profile: FinancialTwinProfile, classification?: CognitiveClassification): string {
+export function runGoalIntelligenceEngine(profile: GoalEngineProfile, classification?: CognitiveClassification): string {
   if (!profile.goals || profile.goals.length === 0) return "";
   if (classification && (classification.intent === 'RESILIENCE' || classification.intent === 'OFF_TOPIC')) return "";
   
   // Calculate Free Cash Flow for deterministic feasibility check
   const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
-  const priorityGoal = profile.goals.reduce((prev, curr) => (prev.progress < curr.progress ? prev : curr));
+  const priorityGoal = profile.goals.reduce((prev, curr) => (prev.progressPercent < curr.progressPercent ? prev : curr));
   
   const metrics = calculateGoalMetrics(profile, priorityGoal);
   
@@ -124,7 +103,7 @@ function runResilienceEngine(profile: FinancialTwinProfile, classification: Cogn
 /**
  * Pillar 4: Suitability Intelligence Engine
  */
-export function runSuitabilityEngine(message: string, profile: FinancialTwinProfile): string {
+export function runSuitabilityEngine(message: string, profile: SuitabilityProfile): string {
   const highRiskKeywords = /(small cap|mid cap|crypto|options|f&o|futures|direct equity)/i;
   
   if (profile.risk_profile === 'Conservative' && highRiskKeywords.test(message)) {
@@ -210,7 +189,7 @@ function getDynamicAIParameters(classification: CognitiveClassification): { temp
 
 export interface OrchestratorPayload {
   success: boolean;
-  data?: any; // string or Stream
+  data?: string | AsyncIterable<StreamTextChunk>;
   error?: string;
   intent: string;
   wasComplianceBlocked: boolean;
@@ -248,7 +227,7 @@ export async function generateAIResponse(
   }
 
   // --- PASS 1: SEMANTIC ROUTER ---
-  const classification = await classifyBehavioralIntent(message);
+  const classification = classifyBehavioralIntentFast(message);
 
   // Layer 2.6: Repeated Vagueness RM Escalation Loop
   if (classification.intent === 'CLARIFICATION') {
@@ -283,11 +262,11 @@ export async function generateAIResponse(
   const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
   const emiBurden = ((profile.telemetry.total_emis / profile.telemetry.monthly_inflow) * 100).toFixed(1);
   const discretionaryRatio = ((profile.telemetry.discretionary_spend / profile.telemetry.monthly_inflow) * 100).toFixed(1);
-  const formattedGoals = profile.goals.map(g => `- ${g.name} (Target: ₹${g.target.toLocaleString()}, Progress: ${g.progress}%)`).join("\n");
+  const formattedGoals = profile.goals.map(g => `- ${g.name} (Target: ₹${g.target.toLocaleString()}, Progress: ${g.progressPercent}%)`).join("\n");
 
   const systemPrompt = `You are Dhan, the NorthStar Wealth Companion.
   
-The customer's Financial Twin profile:
+The customer's money readiness profile:
 Name: ${profile.name}
 Age: ${profile.age} years old
 Risk Profile: ${profile.risk_profile}
@@ -299,7 +278,7 @@ Emergency Fund: ${profile.emergency_fund_months} months
 Relationship Manager: ${profile.rm_name || "Unassigned"}
 RM Contact: ${profile.rm_contact || "N/A"}
 
-[BEHAVIORAL TELEMETRY & CASHFLOW (CNS)]
+[BEHAVIORAL CASH-FLOW CONTEXT]
 Monthly Inflow: ₹${profile.telemetry.monthly_inflow.toLocaleString()}
 Total Monthly Outflow: ₹${profile.telemetry.monthly_outflow.toLocaleString()}
 Total EMIs: ₹${profile.telemetry.total_emis.toLocaleString()}
@@ -330,26 +309,46 @@ Keep your response conversational, empathetic, and under 150 words. DO NOT use i
     const mappedHistory = chatHistory.map(msg => ({
       role: msg.role === "ai" ? "assistant" : msg.role,
       content: msg.content
-    }));
+    })).filter((msg): msg is { role: Exclude<ChatRole, 'system'>; content: string } =>
+      msg.role === "assistant" || msg.role === "user"
+    );
 
-    const responseStream = await nvidiaNim.chat.completions.create({
+    const response = await nvidiaNim.chat.completions.create({
       model: "meta/llama-3.3-70b-instruct",
       messages: [
         { role: "system", content: systemPrompt },
         ...mappedHistory,
-        { role: "user", content: message as any } // Cast to any to satisfy strict types if needed
-      ] as any,
+        { role: "user", content: message }
+      ],
       max_tokens: 300,
       temperature: temperature,
-      stream: true,
+      stream: false,
     });
 
-    // Note: Output Compliance (Layer 5) is deferred/handled via Prompt Engineering
-    // when using streaming, because we cannot Regex block the full text before it sends.
-    return { success: true, data: responseStream, intent: classification.intent, wasComplianceBlocked: false };
+    const fullText = response.choices[0]?.message?.content || "";
+    
+    // Layer 5: Output Compliance Validation
+    const complianceCheck = validateOutputCompliance(fullText);
+    const finalOutput = complianceCheck.success ? complianceCheck.data! : complianceCheck.error!;
+
+    // Create an async generator to simulate streaming so the UI typing effect works
+    async function* simulateStream(text: string) {
+      const chunkSize = 4;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        await new Promise(r => setTimeout(r, 20)); // Simulate token arrival latency
+        yield { choices: [{ delta: { content: text.slice(i, i + chunkSize) } }] };
+      }
+    }
+
+    return { 
+      success: true, 
+      data: simulateStream(finalOutput), 
+      intent: classification.intent, 
+      wasComplianceBlocked: !complianceCheck.success 
+    };
 
   } catch (error) {
     console.error("AI Generation Error:", error);
-    return { success: true, data: "I am analyzing your Financial Twin profile, but experiencing a temporary delay. Please try your question again.", intent: 'GENERAL', wasComplianceBlocked: false };
+    return { success: true, data: "I am analyzing your money readiness profile, but experiencing a temporary delay. Please try your question again.", intent: 'GENERAL', wasComplianceBlocked: false };
   }
 }

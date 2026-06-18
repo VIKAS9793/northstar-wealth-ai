@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FinancialTwinProfile } from "@/features/financial-twin/types";
 import { WealthPortfolioSnapshot } from "@/features/financial-twin/WealthPortfolioSnapshot";
-import { CreditCard, Send, Wallet, ArrowRightLeft, ShieldCheck } from "lucide-react";
+import { CreditCard, Wallet, ArrowRightLeft, ShieldCheck } from "lucide-react";
 import { WealthInsightModal } from "./WealthInsightModal";
 
 interface Props {
@@ -33,7 +33,7 @@ export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }
             <span className="text-green-700 font-bold text-xs">₹</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-gray-600">Tap to review your Financial Twin</span>
+            <span className="text-[10px] text-gray-600">Tap to review your money readiness</span>
             <span className="text-[8px] text-gray-400 mt-1">Simulated Event Trigger. Production: POST /api/webhooks/salary-credit</span>
           </div>
         </div>

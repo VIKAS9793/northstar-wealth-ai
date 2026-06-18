@@ -32,6 +32,11 @@ describe('Governance Services', () => {
       }
     });
 
+    it('should allow behavioral crypto/FOMO education queries', () => {
+      const result = validateInputSecurity('my friend made money in crypto, should I follow him?');
+      expect(result.success).toBe(true);
+    });
+
     it('should allow valid queries', () => {
       const result = validateInputSecurity('how much should I save for an emergency?');
       expect(result.success).toBe(true);

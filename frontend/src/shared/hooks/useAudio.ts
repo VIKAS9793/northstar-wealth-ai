@@ -1,12 +1,26 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+
+type WindowWithWebkitAudio = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
 
 export function useAudio() {
+  const ctxRef = useRef<AudioContext | null>(null);
+  
+  const getCtx = useCallback((): AudioContext | null => {
+    if (ctxRef.current) return ctxRef.current;
+    const AC = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
+    if (!AC) return null;
+    ctxRef.current = new AC();
+    return ctxRef.current;
+  }, []);
+
   const playSound = useCallback((type: 'send' | 'receive' | 'success' | 'alert' | 'confirmation' | 'stress' | 'happy') => {
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      
-      const ctx = new AudioContext();
+      const ctx = getCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume(); // Mobile: resume after user gesture
+
       
       const playTone = (freq: number, waveType: OscillatorType, duration: number, startTime: number, vol = 0.1) => {
         const osc = ctx.createOscillator();
@@ -74,7 +88,7 @@ export function useAudio() {
     } catch (e) {
       console.warn("Audio synthesis failed or blocked by browser.", e);
     }
-  }, []);
+  }, [getCtx]);
 
   return { playSound };
 }

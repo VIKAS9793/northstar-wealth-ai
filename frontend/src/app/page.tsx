@@ -50,7 +50,7 @@ export default function HomePage() {
 
         {/* 2. Chat UI Modal / Slide-Up Overlay */}
         <div 
-          className={`absolute inset-0 bg-gray-950 flex flex-col transition-transform duration-300 ease-in-out z-40 ${isChatOpen ? 'translate-y-0' : 'translate-y-full'}`}
+          className={`absolute inset-0 bg-gray-950 flex flex-col transition-transform duration-300 ease-in-out z-40 pb-safe ${isChatOpen ? 'translate-y-0' : 'translate-y-full'}`}
         >
           {/* Chat Header with Minimize Button */}
           <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-slate-200 shrink-0 shadow-sm z-10">
@@ -74,7 +74,7 @@ export default function HomePage() {
           {/* The Chat UI */}
           {/* Key is used to force re-mount if proactive message changes so state resets */}
           <ChatContainer 
-            key={proactiveMessage || "default"} 
+            key={`${selectedPersona.id}:${proactiveMessage || "default"}`} 
             customer={selectedPersona} 
             proactiveMessage={proactiveMessage} 
           />
@@ -84,7 +84,8 @@ export default function HomePage() {
         {!isChatOpen && (
           <button 
             onClick={() => setIsChatOpen(true)}
-            className="absolute bottom-6 right-6 w-14 h-14 bg-brand-gold rounded-full shadow-2xl shadow-brand-navy/20 flex items-center justify-center hover:bg-amber-400 hover:scale-105 transition-all z-30 group"
+            className="absolute right-6 w-14 h-14 bg-brand-gold rounded-full shadow-2xl shadow-brand-navy/20 flex items-center justify-center hover:bg-amber-400 hover:scale-105 transition-all z-30 group"
+            style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
           >
             <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-slate-900 flex items-center justify-center"></div>
             <MessageSquare className="w-6 h-6 text-brand-navy" />

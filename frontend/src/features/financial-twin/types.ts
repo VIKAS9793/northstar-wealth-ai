@@ -16,7 +16,11 @@ export type PersonaType = "Young Professional" | "Family Planner" | "Pre-Retirem
 export interface Goal {
   name: string;
   target: number;
-  progress: number;
+  /**
+   * Completion percentage from 0 to 100.
+   * This avoids mixing percent progress with rupee-denominated target amounts.
+   */
+  progressPercent: number;
 }
 
 export interface BehavioralTelemetry {

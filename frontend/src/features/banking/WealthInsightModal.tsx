@@ -127,10 +127,10 @@ export function WealthInsightModal({ isOpen, onClose, title, profile }: Props) {
               <div key={idx} className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold text-gray-600">
                   <span>{g.name}</span>
-                  <span>{g.progress}%</span>
+                  <span>{g.progressPercent}%</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div style={{ width: `${g.progress}%` }} className="h-full bg-indigo-500"></div>
+                  <div style={{ width: `${g.progressPercent}%` }} className="h-full bg-indigo-500"></div>
                 </div>
               </div>
             ))}

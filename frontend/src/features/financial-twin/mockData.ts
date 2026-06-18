@@ -20,7 +20,7 @@ export const mockPersonas: FinancialTwinProfile[] = [
     current_value: 410000,
     emergency_fund_months: 2, // Low resilience, good for demoing the Resilience Engine
     goals: [
-      { name: "First Home Downpayment", target: 2000000, progress: 20 }
+      { name: "First Home Downpayment", target: 2000000, progressPercent: 20 }
     ],
     telemetry: {
       monthly_inflow: 100000,
@@ -46,8 +46,8 @@ export const mockPersonas: FinancialTwinProfile[] = [
     current_value: 2200000,
     emergency_fund_months: 6,
     goals: [
-      { name: "Child Education", target: 5000000, progress: 40 },
-      { name: "Retirement", target: 30000000, progress: 5 }
+      { name: "Child Education", target: 5000000, progressPercent: 40 },
+      { name: "Retirement", target: 30000000, progressPercent: 5 }
     ],
     telemetry: {
       monthly_inflow: 200000,
@@ -73,7 +73,7 @@ export const mockPersonas: FinancialTwinProfile[] = [
     current_value: 12000000,
     emergency_fund_months: 12,
     goals: [
-      { name: "Retirement Corpus", target: 20000000, progress: 60 }
+      { name: "Retirement Corpus", target: 20000000, progressPercent: 60 }
     ],
     telemetry: {
       monthly_inflow: 290000,
