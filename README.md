@@ -15,6 +15,12 @@ An AI-powered Wealth Management interface built for the modern Indian investor. 
 > [!TIP]
 > **Live Interactive App:** You can experience the fully responsive mobile banking prototype directly at **[northstar-wealth-ai.netlify.app](https://northstar-wealth-ai.netlify.app/)**.
 
+## Video Walkthrough
+
+[![NorthStar Wealth Companion Demo](https://img.youtube.com/vi/AL3z0U6U8vM/maxresdefault.jpg)](https://youtu.be/AL3z0U6U8vM)
+
+*Click the image above to watch the full 3-minute mobile app walkthrough on YouTube.*
+
 ## Why This Project Exists
 
 This solution originated from recurring investor behaviors observed through years of wealth advisory interactions.
