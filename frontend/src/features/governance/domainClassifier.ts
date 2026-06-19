@@ -109,7 +109,7 @@ const CLASSIFICATION_RULES: PatternRule[] = [
   },
   // OFF TOPIC — confirmed out-of-domain
   {
-    pattern: /cricket (match|score|team)|bollywood|recipe|cook|weather|today'?s news|politics|vote|political|coding|python|javascript|software|homework/i,
+    pattern: /\b(cricket (match|score|team)|bollywood|recipe|cook|weather|today'?s news|politics|vote|political)\b|\b(write|create|generate|debug|solve).*?(python|javascript|code|script|app|homework|math)\b/i,
     intent: 'OFF_TOPIC',
     bias: 'NONE',
     baseConfidence: 0.97,
@@ -133,6 +133,18 @@ export function classifyWithConfidence(message: string): ClassificationResult {
   for (const rule of CLASSIFICATION_RULES) {
     if (rule.pattern.test(message)) {
       const confidence = Math.min(rule.baseConfidence + entityBoost, 0.99);
+
+      // Entity-Override mechanism for Out-of-Domain queries
+      if (rule.intent === 'OFF_TOPIC' && entities.length > 0) {
+        return {
+          intent: 'CLARIFICATION',
+          bias: 'NONE',
+          confidence: 0.85,
+          financialEntities: entities,
+          requiresProbing: true,
+        };
+      }
+
       const requiresProbing =
         confidence < 0.75 ||
         wordCount < 4;

@@ -25,10 +25,10 @@ const THREAT_PATTERNS: Record<string, RegExp> = {
     /(act as|pretend (to be|you are)|you are now|roleplay as|simulate being|imagine you('?re)?|jailbreak|DAN mode|developer mode|unrestricted mode)/i,
 
   SCOPE_EXFILTRATION:
-    /(reveal (your|the) (prompt|instructions?|system)|what (are|were) (you|your) (told|instructions?)|show (me|us) (your|the) (system|instructions?)|repeat (your|the) (system|instructions?))/i,
+    /(reveal (your|the) (prompt|instructions?|system)|what (are|were) (you|your) (told|instructions?|system instructions?)|show (me|us) (your|the) (system|instructions?)|repeat (your|the) (system|instructions?))/i,
 
   ADVERSARIAL_FRAMING:
-    /(hypothetically|in a (story|novel|game|movie)|as (an?|the) (experiment|test|researcher|fictional|character)|in theory|let('?s| us) say|what if you had no|without (any )?restrictions?|if you could say anything)/i,
+    /(hypothetically|in a (story|novel|game|movie)|as (an?|the) (experiment|test|researcher|fictional|character)|in theory|what if you had no|without (any )?restrictions?|if you could say anything)/i,
 };
 
 // Semantic fingerprints of known jailbreak patterns
