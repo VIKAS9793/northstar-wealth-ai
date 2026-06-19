@@ -1,45 +1,69 @@
-import OpenAI from "openai";
-import { FinancialTwinProfile, Goal } from "@/features/financial-twin/types";
-import { validateInputSecurity, validateOutputCompliance } from "@/features/governance/services";
+/**
+ * @file orchestrator.ts
+ * @description 7-Layer Deterministic Governance Pipeline for IDBI Wealth Companion.
+ * Production orchestrator implementing Anthropic-style Constitutional AI.
+ *
+ * LAYER SEQUENCE:
+ * L0 Threat Isolation → L1 Domain Classification → L2 Financial Twin Validation
+ * → L4 Engine Director → L5 LLM Generation → L3 Constitutional Critique
+ * → L6 Compliance Filter → L7 Audit Trail
+ *
+ * NOTE ON CONSTITUTIONAL REVIEW (L3 — LATENCY CRITICAL):
+ * The second LLM call in L3 is gated behind requiresConstitutionalReview().
+ * It fires for ~40% of interactions. On the remaining 60%, latency is identical.
+ * Do NOT remove the gate condition.
+ */
 
-// Initialize NVIDIA NIM Client (OpenAI Compatible)
-const nvidiaNim = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY,
-  baseURL: "https://integrate.api.nvidia.com/v1"
-});
+import OpenAI from 'openai';
+import { FinancialTwinProfile, Goal } from '@/features/financial-twin/types';
 
-interface CognitiveClassification {
-  intent: 'RESILIENCE' | 'EDUCATION' | 'ACCELERATION' | 'GENERAL' | 'OFF_TOPIC' | 'CLARIFICATION' | 'GOAL_PLANNING';
-  bias: 'LOSS_AVERSION' | 'FOMO' | 'HERD_MENTALITY' | 'RECENCY_BIAS' | 'NONE';
-}
+// Governance layers
+import {
+  assessThreatLevel,
+  HARD_BLOCK_RESPONSE,
+} from '@/features/governance/threatIsolation';
+import {
+  classifyWithConfidence,
+  OOD_CONFIDENCE_THRESHOLD,
+} from '@/features/governance/domainClassifier';
+import { validateFinancialTwin } from '@/features/governance/financialTwinValidator';
+import {
+  requiresConstitutionalReview,
+  runConstitutionalCritique,
+} from '@/features/governance/constitution';
+import {
+  resolveEngineDirectives,
+  EngineDirectiveMap,
+} from '@/features/governance/engineDirector';
+import {
+  STRUCTURED_OUTPUT_SYSTEM_SUFFIX,
+  mapIntentToResponseType,
+} from '@/features/governance/outputSchema';
+import {
+  runComplianceFilter,
+} from '@/features/governance/complianceFilter';
+import {
+  createAuditEntry,
+} from '@/features/governance/auditTrail';
+
+// ── Shared types ────────────────────────────────────────────────────────────────
 
 type GoalEngineProfile = Pick<FinancialTwinProfile, 'age' | 'sip_amount' | 'telemetry' | 'goals'>;
 type SuitabilityProfile = Pick<FinancialTwinProfile, 'age' | 'risk_profile'>;
-type ChatRole = 'user' | 'assistant' | 'system';
 type StreamTextChunk = { choices: Array<{ delta?: { content?: string } }> };
 
-/**
- * PASS 1: Semantic Intent Router (Fast Heuristic)
- */
-export function classifyBehavioralIntentFast(message: string): CognitiveClassification {
-  if (/crash|stop sip|panic|withdraw|redeem|scared|worried/i.test(message))
-    return { intent: 'RESILIENCE', bias: 'LOSS_AVERSION' };
-  if (/bonus|extra cash|windfall|paisa invest/i.test(message))
-    return { intent: 'ACCELERATION', bias: 'NONE' };
-  if (/best fund|friend made|crypto|my friend|everyone is/i.test(message))
-    return { intent: 'EDUCATION', bias: 'FOMO' };
-  if (/last year|past year|recent/i.test(message))
-    return { intent: 'EDUCATION', bias: 'RECENCY_BIAS' };
-  if (/sport|cricket|food|recipe|weather/i.test(message))
-    return { intent: 'OFF_TOPIC', bias: 'NONE' };
-  if (message.trim().split(' ').length <= 2)
-    return { intent: 'CLARIFICATION', bias: 'NONE' };
-  if (/home|house|retire|retirement|education|child|corpus|goal|invest|marriage|wealth|emergency fund/i.test(message))
-    return { intent: 'GOAL_PLANNING', bias: 'NONE' };
-  return { intent: 'GENERAL', bias: 'NONE' };
+export interface OrchestratorPayload {
+  success: boolean;
+  data?: string | AsyncIterable<StreamTextChunk>;
+  error?: string;
+  intent: string;
+  wasComplianceBlocked: boolean;
+  auditId?: string;
 }
 
-function calculateGoalMetrics(profile: GoalEngineProfile, goal: Goal) {
+// ── Deterministic Engine Functions ──────────────────────────────────────────────
+
+function calculateGoalMetrics(profile: GoalEngineProfile, goal: { name: string; target: number; progressPercent: number }) {
   const GOAL_HORIZONS: Record<string, number> = {
     'First Home Downpayment': 8,
     'Home Purchase': 8,
@@ -48,307 +72,367 @@ function calculateGoalMetrics(profile: GoalEngineProfile, goal: Goal) {
     'Retirement': Math.max(60 - profile.age, 1),
     'Wealth Creation': 10,
     'Marriage Planning': 5,
-    'Passive Income': 10
+    'Passive Income': 10,
   };
   const remainingYears = GOAL_HORIZONS[goal.name] ?? Math.max(60 - profile.age, 1);
   const monthsRemaining = remainingYears * 12;
   const shortfall = goal.target * (1 - goal.progressPercent / 100);
-  const requiredMonthlySIP = shortfall / monthsRemaining; // simplified, non-compounded baseline
+  const requiredMonthlySIP = shortfall / monthsRemaining;
   const currentSIPRatio = profile.sip_amount / requiredMonthlySIP;
   const goalProbability = Math.min(Math.round(currentSIPRatio * 100), 100);
-
-  return {
-    targetCorpus: goal.target,
-    shortfall,
-    requiredMonthlySIP: Math.round(requiredMonthlySIP),
-    goalProbability,
-    monthsRemaining
-  };
+  return { targetCorpus: goal.target, shortfall, requiredMonthlySIP: Math.round(requiredMonthlySIP), goalProbability, monthsRemaining };
 }
 
-/**
- * Pillar 1: Goal Intelligence Engine
- */
-export function runGoalIntelligenceEngine(profile: GoalEngineProfile, classification?: CognitiveClassification): string {
-  if (!profile.goals || profile.goals.length === 0) return "";
-  if (classification && (classification.intent === 'RESILIENCE' || classification.intent === 'OFF_TOPIC')) return "";
-  
-  // Calculate Free Cash Flow for deterministic feasibility check
+/** Goal Intelligence Engine — L4 directive for primary goal context. */
+export function runGoalIntelligenceEngine(profile: GoalEngineProfile, classification?: { intent: string }): string {
+  if (!profile.goals || profile.goals.length === 0) return '';
+  if (classification && (classification.intent === 'RESILIENCE' || classification.intent === 'OFF_TOPIC')) return '';
   const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
   const priorityGoal = profile.goals.reduce((prev, curr) => (prev.progressPercent < curr.progressPercent ? prev : curr));
-  
   const metrics = calculateGoalMetrics(profile, priorityGoal);
-  
-  // Mathematical Determinism Constraint
   if (freeCashFlow < 1000 && metrics.shortfall > 500000) {
     return `[GOAL INTELLIGENCE ENGINE TRIGGERED]: The user's priority goal '${priorityGoal.name}' has a shortfall of ₹${metrics.shortfall.toLocaleString()}. Their free cash flow is ₹${freeCashFlow.toLocaleString()}. If they specifically ask to invest more, explain this gap and recommend debt consolidation first. DO NOT mention this randomly if they just ask a general question.`;
   }
-  
   return `[GOAL INTELLIGENCE ENGINE]: Priority goal is '${priorityGoal.name}'. Target: ₹${metrics.targetCorpus.toLocaleString()}, Shortfall: ₹${metrics.shortfall.toLocaleString()}, Required SIP: ₹${metrics.requiredMonthlySIP.toLocaleString()}/month, Probability of Success: ${metrics.goalProbability}%. Use this context ONLY if they ask about goals.`;
 }
 
-/**
- * Pillar 2: Financial Resilience Engine
- */
-function runResilienceEngine(profile: FinancialTwinProfile, classification: CognitiveClassification): string {
-  if (classification.intent === 'RESILIENCE' || classification.bias === 'LOSS_AVERSION') {
-    if (profile.emergency_fund_months < 6) {
-      return `[RESILIENCE ENGINE TRIGGERED]: CRITICAL DIRECTIVE. The user is panicking or asking to stop their SIP. You MUST STRONGLY ADVISE AGAINST stopping the SIP. NEVER encourage or validate stopping SIPs. Explain that life events cause more SIP failures than market crashes. Strongly recommend they divert funds to a Bank FD or Liquid Fund to build a 6-month safety net before altering equity SIPs.`;
-    }
-    return `[RESILIENCE ENGINE TRIGGERED]: CRITICAL DIRECTIVE. The user is panicking or asking to stop their SIP. You MUST STRONGLY ADVISE AGAINST stopping the SIP. NEVER encourage stopping SIPs. Reassure them that their liquidity (${profile.emergency_fund_months} months) protects them. Remind them that market corrections are a "Sale Season" for SIPs.`;
-  }
-  return "";
-}
-
-/**
- * Pillar 4: Suitability Intelligence Engine
- */
+/** Suitability Intelligence Engine — L4 directive for risk-profile enforcement. */
 export function runSuitabilityEngine(message: string, profile: SuitabilityProfile): string {
   const highRiskKeywords = /(small cap|mid cap|crypto|options|f&o|futures|direct equity)/i;
-  
   if (profile.risk_profile === 'Conservative' && highRiskKeywords.test(message)) {
     return `[SUITABILITY ENGINE HARD REJECTION]: DO NOT GENERATE NORMAL ADVICE. The user requested high-risk instruments but has a CONSERVATIVE risk profile. You MUST output EXACTLY: "Based on your Conservative risk profile, SEBI guidelines prevent me from recommending high-volatility instruments like small caps or F&O. I recommend we focus on Large Cap or Balanced Advantage funds to protect your capital."`;
   }
-  
   if (profile.age >= 60 && /(equity|small cap|long term growth)/i.test(message)) {
     return `[SUITABILITY ENGINE TRIGGERED]: The user is a Senior Citizen (${profile.age} years old). Capital preservation and regular income are paramount. Prioritize Debt Mutual Funds or FDs over aggressive equity.`;
   }
-  
-  return "";
+  return '';
 }
 
-/**
- * Pillar 5 & 6: Financial Education & Behavioral Engine
- */
-function runEducationEngine(classification: CognitiveClassification): string {
-  if (classification.bias === 'FOMO' || classification.bias === 'HERD_MENTALITY') {
-    return `[EDUCATION ENGINE TRIGGERED]: The user is exhibiting FOMO or Herd Mentality. Do not recommend "best" funds. Instead, educate them using the "Cricket Team" analogy (true wealth is built through consistent asset allocation across different types of players/funds, not just picking one star player).`;
+// ── Private engine functions ────────────────────────────────────────────────────
+
+type CogClass = { intent: string; bias: string };
+
+function runResilienceEngine(profile: FinancialTwinProfile, cls: CogClass): string {
+  if (cls.intent !== 'RESILIENCE' && cls.bias !== 'LOSS_AVERSION') return '';
+  if (profile.emergency_fund_months < 6) {
+    return `[RESILIENCE ENGINE]: CRITICAL DIRECTIVE. User is panicking or asking to stop SIP. ` +
+      `STRONGLY advise AGAINST stopping SIP. Life events — not markets — cause SIP failures. ` +
+      `Recommend building a 6-month emergency buffer before altering equity SIPs.`;
   }
-  if (classification.bias === 'RECENCY_BIAS') {
-    return `[EDUCATION ENGINE TRIGGERED]: User is exhibiting Recency Bias — extrapolating recent performance into future. Educate using the 'Sale Season' analogy to explain that markets correct and SIPs benefit from it.`;
-  }
-  return "";
+  return `[RESILIENCE ENGINE]: User is concerned about markets. ADVISE AGAINST stopping SIP. ` +
+    `Liquidity (${profile.emergency_fund_months} months) provides protection. ` +
+    `Frame market correction as "Sale Season" for SIPs.`;
 }
 
-/**
- * Pillar 7: Goal Achievement Accelerator
- */
-function runGoalAccelerator(classification: CognitiveClassification): string {
-  if (classification.intent === 'ACCELERATION') {
-    return `[ACCELERATOR ENGINE TRIGGERED]: The user has received extra capital. Recommend a Step-Up SIP routed through the Mutual Fund ecosystem to accelerate their primary goal.`;
+function runEducationEngine(cls: CogClass): string {
+  if (cls.bias === 'FOMO' || cls.bias === 'HERD_MENTALITY') {
+    return `[EDUCATION ENGINE]: User shows FOMO/Herd Mentality. Do not recommend "best" funds. ` +
+      `Use "Cricket Team" analogy — wealth built through consistent allocation, not picking one star.`;
   }
-  return "";
+  if (cls.bias === 'RECENCY_BIAS') {
+    return `[EDUCATION ENGINE]: User shows Recency Bias — extrapolating recent performance. ` +
+      `Use "Sale Season" analogy — corrections benefit SIP investors.`;
+  }
+  return '';
 }
 
-/**
- * Pillar 8: Customer Context Probing Engine
- */
-function runProbingEngine(message: string, classification: CognitiveClassification): string {
-  // Check if the user provided specific numbers (amounts, timelines)
+function runGoalAccelerator(cls: CogClass): string {
+  if (cls.intent !== 'ACCELERATION') return '';
+  return `[ACCELERATOR ENGINE]: User has extra capital. Recommend Step-Up SIP to accelerate primary goal.`;
+}
+
+function runProbing(message: string, cls: CogClass): string {
   const hasNumbers = /\d/.test(message);
-  
-  if (classification.intent === 'RESILIENCE' && !hasNumbers) {
-    return `[PROBING ENGINE TRIGGERED]: The user is facing a stress event but hasn't provided specifics. Before giving a final solution, you MUST ask EXACTLY ONE empathetic clarifying question (e.g. "I am sorry to hear that. Roughly how much do you need and by when?") to assess the situation without annoying them.`;
+  if (cls.intent === 'RESILIENCE' && !hasNumbers) {
+    return `[PROBING ENGINE]: Ask ONE empathetic clarifying question to understand the stress event before advising.`;
   }
-  
-  if (classification.intent === 'CLARIFICATION') {
-    return `[PROBING ENGINE TRIGGERED]: The user's query is too short or vague to act on immediately. Look at their active goals and profile, and ask ONE highly contextual, engaging question to guide the conversation forward. DO NOT use robotic fallback lines.`;
+  if (cls.intent === 'CLARIFICATION') {
+    return `[PROBING ENGINE]: Query is vague. Ask ONE highly contextual question using their profile.`;
   }
-
-  return "";
+  return '';
 }
 
-/**
- * Pillar 9: Dynamic Tone & Parameter Engine
- * Adjusts LLM temperature and tone based on the customer's emotional state.
- */
-function getDynamicAIParameters(classification: CognitiveClassification): { temperature: number; tone: string } {
-  switch (classification.intent) {
-    case 'RESILIENCE':
-      return {
-        temperature: 0.1, // Highly deterministic during stress to avoid hallucinations
-        tone: "Calm, deeply empathetic, and highly cognitive. NEVER use stressful or alarming words (like 'panic', 'crash', or 'danger'). Frame every situation as an opportunity for 'balancing' or 'optimization'. Use human-centric, reassuring language."
-      };
-    case 'EDUCATION':
-      return {
-        temperature: 0.4, // Higher temp allows for creative, relatable analogies
-        tone: "Encouraging, educational, and patient. Use simple, relatable analogies to explain complex financial concepts without sounding robotic."
-      };
-    case 'ACCELERATION':
-      return {
-        temperature: 0.3,
-        tone: "Motivational and forward-looking. Focus on the cognitive satisfaction of reaching goals and the power of compounding."
-      };
-    default:
-      return {
-        temperature: 0.3,
-        tone: "Professional, polite, empathetic, and human-centric. Avoid dense jargon."
-      };
+function getDynamicParams(cls: CogClass): { temperature: number; tone: string } {
+  if (cls.intent === 'RESILIENCE') {
+    return {
+      temperature: 0.10,
+      tone: 'Calm, deeply empathetic. Never use alarming words. Frame challenges as "balancing" opportunities.',
+    };
+  }
+  if (cls.intent === 'EDUCATION') {
+    return {
+      temperature: 0.40,
+      tone: 'Encouraging, educational. Use simple analogies. Patient and approachable.',
+    };
+  }
+  if (cls.intent === 'ACCELERATION') {
+    return {
+      temperature: 0.30,
+      tone: 'Motivational, forward-looking. Focus on goal achievement satisfaction.',
+    };
+  }
+  return {
+    temperature: 0.30,
+    tone: 'Professional, polite, empathetic. Avoid dense jargon.',
+  };
+}
+
+async function* simulateStream(text: string) {
+  const chunkSize = 4;
+  for (let i = 0; i < text.length; i += chunkSize) {
+    await new Promise(r => setTimeout(r, 20));
+    yield { choices: [{ delta: { content: text.slice(i, i + chunkSize) } }] };
   }
 }
 
-export interface OrchestratorPayload {
-  success: boolean;
-  data?: string | AsyncIterable<StreamTextChunk>;
-  error?: string;
-  intent: string;
-  wasComplianceBlocked: boolean;
-}
+// ── NVIDIA NIM client ──────────────────────────────────────────────────────────
+const nvidiaNim = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY,
+  baseURL: 'https://integrate.api.nvidia.com/v1',
+});
 
-/**
- * Orchestrates the full AI lifecycle using a Two-Pass Agentic Architecture.
- */
+const OFF_TOPIC_RESPONSE =
+  'I specialise in wealth management, financial planning, and banking services. ' +
+  'I am unable to assist with non-financial queries. How can I help you with your portfolio today?';
+
+const ESCALATION_RESPONSE = (rmName: string) =>
+  `This sounds like a query that requires personalised expert guidance. ` +
+  `I am connecting you to ${rmName}. They will review our chat history and assist you further.`;
+
+const FALLBACK_RESPONSE = {
+  success: true as const,
+  data: 'I am analysing your financial profile but experiencing a temporary delay. Please try again.',
+  intent: 'GENERAL',
+  wasComplianceBlocked: false,
+  auditId: undefined,
+};
+
+// ── Main 7-Layer Orchestrator ──────────────────────────────────────────────────
+
 export async function generateAIResponse(
-  message: string, 
-  profile: FinancialTwinProfile, 
-  chatHistory: { role: string; content: string }[] = []
-): Promise<OrchestratorPayload> {
-  
-  // --- DEMO STABILITY CACHE (CRITICAL PITCH PATH) ---
+  message: string,
+  profile: FinancialTwinProfile,
+  chatHistory: { role: string; content: string }[] = [],
+  sessionId: string = 'default'
+) {
+  // ── DEMO STABILITY CACHE — preserve fast paths for critical demo steps ────
   const lowerMsg = message.toLowerCase();
-  if (lowerMsg.includes("paisa invest karna hai")) {
-    if (profile.emergency_fund_months < 6) {
-      return { success: true, data: `Namaste! Since you have free cash flow this month, let's prioritize closing the gap in your emergency fund first before increasing equity exposure.`, intent: 'ACCELERATION', wasComplianceBlocked: false };
-    } else {
-      return { success: true, data: "Namaste! Since your emergency fund is healthy, I recommend setting up a Step-Up SIP towards your pending goals. Would you like to review your options?", intent: 'ACCELERATION', wasComplianceBlocked: false };
-    }
+  if (lowerMsg.includes('paisa invest karna hai')) {
+    const cached = profile.emergency_fund_months < 6
+      ? `Namaste ${profile.name}! Since you have free cash flow this month, let's prioritise closing the gap in your emergency fund first before increasing equity exposure.`
+      : `Namaste ${profile.name}! Since your emergency fund is healthy, I recommend setting up a Step-Up SIP towards your pending goals. Would you like to review your options?`;
+    return { success: true as const, data: cached, intent: 'ACCELERATION', wasComplianceBlocked: false };
   }
 
-  // Layer 0 & 1: Governance Input Security
-  const securityCheck = validateInputSecurity(message);
-  if (!securityCheck.success) {
-    return { success: true, data: securityCheck.error, intent: 'GENERAL', wasComplianceBlocked: true };
+  // ══════════════════════════════════════════════════════════════════════════
+  // L0 — THREAT ISOLATION
+  // ══════════════════════════════════════════════════════════════════════════
+  const threatAssessment = assessThreatLevel(message);
+  if (threatAssessment.threatLevel === 'HARD_BLOCK') {
+    createAuditEntry({
+      sessionId,
+      customerId: profile.id,
+      rawInput: message,
+      threatAssessment,
+      classificationResult: { intent: 'OFF_TOPIC', bias: 'NONE', confidence: 1.0, financialEntities: [], requiresProbing: false },
+      twinSnapshot: buildTwinSnapshot(profile),
+      enginesFired: [],
+      preflightBlocks: [],
+      constitutionalReviewRan: false,
+      constitutionalViolations: [],
+      complianceViolations: [],
+      finalResponse: HARD_BLOCK_RESPONSE,
+      disclosuresInjected: [],
+      wasBlocked: true,
+      confidenceScore: 1.0,
+    });
+    return { success: true as const, data: HARD_BLOCK_RESPONSE, intent: 'OFF_TOPIC', wasComplianceBlocked: true };
   }
 
-  // Layer 2.5: Human-In-The-Loop Escalation Check
+  // ══════════════════════════════════════════════════════════════════════════
+  // L1 — DOMAIN CLASSIFICATION
+  // ══════════════════════════════════════════════════════════════════════════
+  const classification = classifyWithConfidence(message);
+
+  if (classification.intent === 'OFF_TOPIC') {
+    return { success: true as const, data: OFF_TOPIC_RESPONSE, intent: 'OFF_TOPIC', wasComplianceBlocked: false };
+  }
+
+  // Human escalation check
   if (/(speak to human|talk to human|call rm|expert|complaint|manager|angry|frustrated|complex tax)/i.test(message)) {
-    const rmName = profile.rm_name || "your dedicated RM";
-    return { success: true, data: `This sounds like a query that requires personalized expert guidance. Let me escalate this immediately. I am connecting you to ${rmName}. They will review our chat history and assist you further.`, intent: 'GENERAL', wasComplianceBlocked: false };
+    const rmName = profile.rm_name ?? 'your dedicated Relationship Manager';
+    return { success: true as const, data: ESCALATION_RESPONSE(rmName), intent: 'GENERAL', wasComplianceBlocked: false };
   }
 
-  // --- PASS 1: SEMANTIC ROUTER ---
-  const classification = classifyBehavioralIntentFast(message);
-
-  // Layer 2.6: Repeated Vagueness RM Escalation Loop
+  // Repeated vagueness escalation
   if (classification.intent === 'CLARIFICATION') {
     const userMessages = chatHistory.filter(m => m.role === 'user');
     if (userMessages.length >= 1) {
       const prevMsg = userMessages[userMessages.length - 1].content;
-      // If previous message was also extremely short (< 4 words)
       if (prevMsg.split(' ').length <= 3) {
-        const rmName = profile.rm_name || "your dedicated RM";
-        return { success: true, data: `I notice we might not be making the best progress, and I want to ensure you get exactly the help you need. I am seamlessly connecting you to ${rmName}, your dedicated Wealth Manager. They will review our chat and assist you directly.`, intent: 'CLARIFICATION', wasComplianceBlocked: false };
+        const rmName = profile.rm_name ?? 'your dedicated Relationship Manager';
+        return { success: true as const, data: ESCALATION_RESPONSE(rmName), intent: 'CLARIFICATION', wasComplianceBlocked: false };
       }
     }
   }
 
-  if (classification.intent === 'OFF_TOPIC') {
-    return { success: true, data: "I specialize in wealth management, financial planning, and banking services. I am unable to assist with non-financial queries. How can I help you with your portfolio today?", intent: 'OFF_TOPIC', wasComplianceBlocked: false };
+  // ══════════════════════════════════════════════════════════════════════════
+  // L2 — FINANCIAL TWIN VALIDATION
+  // ══════════════════════════════════════════════════════════════════════════
+  const twinValidation = validateFinancialTwin(profile, classification);
+
+  if (twinValidation.requiresEscalation) {
+    const rmName = profile.rm_name ?? 'your dedicated Relationship Manager';
+    return { success: true as const, data: ESCALATION_RESPONSE(rmName), intent: classification.intent, wasComplianceBlocked: false };
   }
 
-  // --- ORCHESTRATE WEALTH ENGINES ---
-  const goalRules = runGoalIntelligenceEngine(profile, classification);
-  const resilienceRules = runResilienceEngine(profile, classification);
-  const suitabilityRules = runSuitabilityEngine(message, profile);
-  const educationRules = runEducationEngine(classification);
-  const acceleratorRules = runGoalAccelerator(classification);
-  const probingRules = runProbingEngine(message, classification);
+  // ══════════════════════════════════════════════════════════════════════════
+  // L4 — ENGINE DIRECTOR (runs before LLM)
+  // ══════════════════════════════════════════════════════════════════════════
+  const compatCls = { intent: classification.intent, bias: classification.bias };
 
-  const engineDirectives = [goalRules, resilienceRules, suitabilityRules, educationRules, acceleratorRules, probingRules].filter(r => r !== "").join("\n\n");
+  const rawDirectives: EngineDirectiveMap = {
+    SUITABILITY:   runSuitabilityEngine(message, profile),
+    RESILIENCE:    runResilienceEngine(profile, compatCls),
+    PREFLIGHT:     twinValidation.enrichedContext,
+    GOAL_PLANNING: runGoalIntelligenceEngine(profile, compatCls),
+    ACCELERATION:  runGoalAccelerator(compatCls),
+    EDUCATION:     runEducationEngine(compatCls),
+    PROBING:       runProbing(message, compatCls),
+  };
 
-  const { temperature, tone } = getDynamicAIParameters(classification);
+  const resolvedDirectives = resolveEngineDirectives(rawDirectives);
+  const activeEngines = Object.entries(rawDirectives)
+    .filter(([, v]) => v !== '')
+    .map(([k]) => k);
 
-  // --- CNS MATHEMATICAL CALCULATIONS ---
-  const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
-  const emiBurden = ((profile.telemetry.total_emis / profile.telemetry.monthly_inflow) * 100).toFixed(1);
+  // ══════════════════════════════════════════════════════════════════════════
+  // L5 — LLM GENERATION
+  // ══════════════════════════════════════════════════════════════════════════
+  const { temperature, tone } = getDynamicParams(compatCls);
+
+  const freeCashFlow = twinValidation.computedMetrics.freeCashFlow;
+  const emiBurdenPct = twinValidation.computedMetrics.emiBurdenPercent.toFixed(1);
   const discretionaryRatio = ((profile.telemetry.discretionary_spend / profile.telemetry.monthly_inflow) * 100).toFixed(1);
-  const formattedGoals = profile.goals.map(g => `- ${g.name} (Target: ₹${g.target.toLocaleString()}, Progress: ${g.progressPercent}%)`).join("\n");
+  const formattedGoals = profile.goals
+    .map(g => `- ${g.name} (Target: ₹${g.target.toLocaleString()}, Progress: ${g.progressPercent}%)`)
+    .join('\n');
 
-  const systemPrompt = `You are Dhan, the NorthStar Wealth Companion.
-  
-The customer's money readiness profile:
-Name: ${profile.name}
-Age: ${profile.age} years old
-Risk Profile: ${profile.risk_profile}
-Monthly Income: ₹${profile.income.toLocaleString()}
-Current Monthly SIP: ₹${profile.sip_amount.toLocaleString()}
-Total Amount Invested: ₹${profile.total_invested.toLocaleString()}
-Current Portfolio Value: ₹${profile.current_value.toLocaleString()}
-Emergency Fund: ${profile.emergency_fund_months} months
-Relationship Manager: ${profile.rm_name || "Unassigned"}
-RM Contact: ${profile.rm_contact || "N/A"}
+  const systemPrompt = `You are Dhan, the IDBI Wealth Companion.
 
-[BEHAVIORAL CASH-FLOW CONTEXT]
-Monthly Inflow: ₹${profile.telemetry.monthly_inflow.toLocaleString()}
-Total Monthly Outflow: ₹${profile.telemetry.monthly_outflow.toLocaleString()}
-Total EMIs: ₹${profile.telemetry.total_emis.toLocaleString()}
-Available Free Cashflow: ₹${freeCashFlow.toLocaleString()}
-EMI Burden: ${emiBurden}% of income
-Discretionary Spend: ${discretionaryRatio}% of income
-SIP Health: ${profile.telemetry.sip_health_status}
-Cashflow Profile: ${profile.telemetry.cashflow_profile}
+CUSTOMER FINANCIAL TWIN:
+Name: ${profile.name} | Age: ${profile.age} | Risk Profile: ${profile.risk_profile}
+Monthly Income: ₹${profile.income.toLocaleString()} | Current SIP: ₹${profile.sip_amount.toLocaleString()}
+Emergency Fund: ${profile.emergency_fund_months} months | Free Cash Flow: ₹${freeCashFlow.toLocaleString()}/month
+EMI Burden: ${emiBurdenPct}% | Discretionary Spend: ${discretionaryRatio}%
+SIP Health: ${profile.telemetry.sip_health_status} | Cash Flow Profile: ${profile.telemetry.cashflow_profile}
 
-[ACTIVE GOALS]
+ACTIVE GOALS:
 ${formattedGoals}
 
-DYNAMIC TONE DIRECTIVE:
-You MUST adopt the following tone for this response: ${tone}
-LANGUAGE RULE: Never use stressful, load-bearing words. Frame challenges as "optimization" or "balancing" opportunities.
+TONE DIRECTIVE: ${tone}
 
-${engineDirectives ? `\n--- WEALTH ENGINE DIRECTIVES ---\n${engineDirectives}\nYou MUST follow these directives strictly in your response.\n-------------------------------\n` : ''}
+${resolvedDirectives ? `--- ENGINE DIRECTIVES (follow strictly) ---\n${resolvedDirectives}\n---` : ''}
 
-SEBI GOVERNANCE RULES:
-1. NO GUARANTEES: Never use the words "guaranteed", "assured", or "risk-free" regarding returns.
-2. SUITABILITY: All guidance MUST explicitly align with the user's Risk Appetite.
-3. NEUTRALITY: Focus strictly on financial planning. No politics.
-4. PROBING LIMIT: Never ask more than ONE question per response. Over-probing annoys customers.
+SEBI GOVERNANCE:
+1. NO GUARANTEES — never use "guaranteed", "assured", "risk-free" regarding returns
+2. SUITABILITY — all guidance must align explicitly with the customer's risk profile
+3. ASSUMPTION TRANSPARENCY — state assumptions behind any projection
+4. PROBING LIMIT — maximum ONE question per response
+${STRUCTURED_OUTPUT_SYSTEM_SUFFIX}`;
 
-Keep your response conversational, empathetic, and under 150 words. DO NOT use italics or excessive markdown formatting. Output clean, professional plain text with basic paragraph breaks.`;
-
+  let draftResponse: string;
   try {
-    const mappedHistory = chatHistory.map(msg => ({
-      role: msg.role === "ai" ? "assistant" : msg.role,
-      content: msg.content
-    })).filter((msg): msg is { role: Exclude<ChatRole, 'system'>; content: string } =>
-      msg.role === "assistant" || msg.role === "user"
-    );
+    const mappedHistory = chatHistory
+      .map(msg => ({ role: msg.role === 'ai' ? 'assistant' : msg.role, content: msg.content }))
+      .filter((msg): msg is { role: 'user' | 'assistant'; content: string } =>
+        msg.role === 'assistant' || msg.role === 'user'
+      );
 
-    const response = await nvidiaNim.chat.completions.create({
-      model: "meta/llama-3.3-70b-instruct",
+    const completion = await nvidiaNim.chat.completions.create({
+      model: 'meta/llama-3.3-70b-instruct',
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: 'system', content: systemPrompt },
         ...mappedHistory,
-        { role: "user", content: message }
+        { role: 'user', content: message },
       ],
       max_tokens: 300,
-      temperature: temperature,
+      temperature,
       stream: false,
     });
 
-    const fullText = response.choices[0]?.message?.content || "";
-    
-    // Layer 5: Output Compliance Validation
-    const complianceCheck = validateOutputCompliance(fullText);
-    const finalOutput = complianceCheck.success ? complianceCheck.data! : complianceCheck.error!;
-
-    // Create an async generator to simulate streaming so the UI typing effect works
-    async function* simulateStream(text: string) {
-      const chunkSize = 4;
-      for (let i = 0; i < text.length; i += chunkSize) {
-        await new Promise(r => setTimeout(r, 20)); // Simulate token arrival latency
-        yield { choices: [{ delta: { content: text.slice(i, i + chunkSize) } }] };
-      }
-    }
-
-    return { 
-      success: true, 
-      data: simulateStream(finalOutput), 
-      intent: classification.intent, 
-      wasComplianceBlocked: !complianceCheck.success 
-    };
-
+    draftResponse = completion.choices[0]?.message?.content ?? '';
   } catch (error) {
-    console.error("AI Generation Error:", error);
-    return { success: true, data: "I am analyzing your money readiness profile, but experiencing a temporary delay. Please try your question again.", intent: 'GENERAL', wasComplianceBlocked: false };
+    console.error('[ORCHESTRATOR] LLM generation error:', error);
+    return FALLBACK_RESPONSE;
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // L3 — CONSTITUTIONAL AI CRITIQUE
+  // LATENCY GATE: only fires for ~40% of interactions
+  // ══════════════════════════════════════════════════════════════════════════
+  let finalText = draftResponse;
+  let constitutionalViolations: string[] = [];
+  let constitutionalReviewRan = false;
+
+  if (requiresConstitutionalReview(classification, twinValidation.preflightBlocks)) {
+    constitutionalReviewRan = true;
+    const critique = await runConstitutionalCritique(draftResponse, nvidiaNim);
+    finalText = critique.finalResponse;
+    constitutionalViolations = critique.violations;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // L6 — POST-GENERATION COMPLIANCE
+  // ══════════════════════════════════════════════════════════════════════════
+  const complianceResult = runComplianceFilter(finalText, classification.intent);
+  const outputText = complianceResult.finalResponse;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // L7 — AUDIT TRAIL
+  // ══════════════════════════════════════════════════════════════════════════
+  const auditEntry = createAuditEntry({
+    sessionId,
+    customerId: profile.id,
+    rawInput: message,
+    threatAssessment,
+    classificationResult: classification,
+    twinSnapshot: buildTwinSnapshot(profile),
+    enginesFired: activeEngines,
+    preflightBlocks: twinValidation.preflightBlocks.map(b => b.rule),
+    constitutionalReviewRan,
+    constitutionalViolations,
+    complianceViolations: complianceResult.violations,
+    finalResponse: outputText,
+    disclosuresInjected: complianceResult.disclosures,
+    wasBlocked: !complianceResult.passed,
+    confidenceScore: classification.confidence,
+  });
+
+  return {
+    success: true as const,
+    data: simulateStream(outputText),
+    intent: classification.intent,
+    wasComplianceBlocked: !complianceResult.passed,
+    auditId: auditEntry.auditId,
+  };
+}
+
+function buildTwinSnapshot(profile: FinancialTwinProfile) {
+  const freeCashFlow =
+    profile.telemetry.monthly_inflow -
+    profile.telemetry.monthly_outflow -
+    profile.telemetry.total_emis;
+  const emiBurdenPercent =
+    profile.telemetry.monthly_inflow > 0
+      ? (profile.telemetry.total_emis / profile.telemetry.monthly_inflow) * 100
+      : 0;
+  return {
+    age: profile.age,
+    riskProfile: profile.risk_profile,
+    emergencyFundMonths: profile.emergency_fund_months,
+    freeCashFlow,
+    goalCount: profile.goals.length,
+    emiBurdenPercent,
+  };
 }

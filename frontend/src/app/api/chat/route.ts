@@ -3,10 +3,10 @@ import { generateAIResponse } from '@/services/ai/orchestrator';
 
 /**
  * API Route: /api/chat
- * 
+ *
  * Streams Server-Sent Events (SSE) back to the client.
- * Metadata (intent, compliance block) is sent in the first chunk,
- * followed by the streamed text deltas.
+ * MOD-3: Extracts sessionId from x-session-id header for audit trail.
+ * MOD-3: Returns auditId in metadata chunk for client-side correlation.
  */
 export async function POST(req: Request) {
   try {
@@ -15,12 +15,22 @@ export async function POST(req: Request) {
 
     if (!message || !customerProfile) {
       return NextResponse.json(
-        { error: "Missing required fields" }, 
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    const result = await generateAIResponse(message, customerProfile, chatHistory || []);
+    // MOD-3: Extract or generate sessionId for audit trail correlation
+    const sessionId =
+      req.headers.get('x-session-id') ??
+      `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    const result = await generateAIResponse(
+      message,
+      customerProfile,
+      chatHistory ?? [],
+      sessionId
+    );
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -29,11 +39,12 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(': keepalive\n\n'));
         }, 8000);
 
-        // Send metadata as the first chunk
+        // Send metadata as the first chunk — includes auditId for L7 correlation
         const metadata = {
           type: 'metadata',
           intent: result.intent,
           wasComplianceBlocked: result.wasComplianceBlocked,
+          auditId: (result as { auditId?: string }).auditId,
           error: result.success ? undefined : result.error
         };
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));

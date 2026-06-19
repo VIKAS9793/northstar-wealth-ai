@@ -1,70 +1,65 @@
-import { Result } from "@/shared/types/Result";
+/**
+ * @file services.ts
+ * @description Governance service entry point — upgraded to delegate to
+ * the 7-layer deterministic pipeline while preserving existing function
+ * signatures for backward compatibility with orchestrator.ts and tests.
+ *
+ * MOD-1: validateInputSecurity now delegates to L0 threatIsolation.
+ * MOD-1: validateOutputCompliance now delegates to L6 complianceFilter.
+ * All existing call sites continue to work without modification.
+ */
+
+import { Result } from '@/shared/types/Result';
+import { assessThreatLevel, HARD_BLOCK_RESPONSE } from './threatIsolation';
+import { runComplianceFilter } from './complianceFilter';
 
 /**
- * Validates the user input against critical prompt injection patterns and jailbreak attempts.
- * 
- * @param message - The raw user input.
- * @returns A Result indicating success or a blocked response.
+ * Validates raw user input against the L0 Threat Isolation layer.
+ * Delegates to assessThreatLevel() — expanded from 3 patterns to semantic WAF.
+ * Preserves original Result<string, string> return signature.
  */
 export function validateInputSecurity(message: string): Result<string, string> {
   if (!message || message.trim().length === 0) {
-    return {
-      success: false,
-      error: "Please enter a valid message."
-    };
+    return { success: false, error: 'Please enter a valid message.' };
   }
 
-  const jailbreakRegex = /(ignore previous|act as|pretend to be|unregulated|jailbreak|bypass|disregard instructions)/i;
-  
-  if (jailbreakRegex.test(message)) {
-    console.warn("Security Alert: Prompt Injection attempt intercepted at Layer 0");
-    return {
-      success: false,
-      error: "I can only assist with your wealth management, portfolio planning, and financial goals. Let me know how I can help you with your investments today."
-    };
+  const assessment = assessThreatLevel(message);
+
+  if (assessment.threatLevel === 'HARD_BLOCK') {
+    return { success: false, error: HARD_BLOCK_RESPONSE };
   }
 
-  const offTopicRegex = /(python|scrape|beautifulsoup|vote for|political party|politician|cricket match|bollywood)/i;
-  if (offTopicRegex.test(message)) {
-    console.warn("Domain Rejection: Off-topic request intercepted at Layer 1");
-    return {
-      success: false,
-      error: "I am the NorthStar Wealth Companion. Let's focus our discussion on your financial goals, SIPs, or market trends."
-    };
-  }
-
-  const cryptoTradingRegex = /(bitcoin price|price of bitcoin|crypto price|buy crypto|trade crypto|crypto trading|intraday|trading call)/i;
-  if (cryptoTradingRegex.test(message)) {
-    console.warn("Domain Rejection: Trading or price query intercepted at Layer 1");
-    return {
-      success: false,
-      error: "I am the NorthStar Wealth Companion. I cannot provide trading calls or live crypto price guidance. I can help you understand risk, suitability, and how such choices may affect your long-term financial goals."
-    };
+  // SUSPICIOUS inputs pass through with a warning — they reach the LLM
+  // but are flagged in the audit trail for review
+  if (assessment.threatLevel === 'SUSPICIOUS') {
+    console.warn(`[GOVERNANCE] SUSPICIOUS input passed to LLM | reason: ${assessment.reason}`);
   }
 
   return { success: true, data: message };
 }
 
 /**
- * Evaluates the AI recommendation against compliance rules (e.g. guarantees).
- * 
- * @param response - The generated AI response.
- * @returns A Result indicating if the response is safe to present to the user.
+ * Evaluates AI response against L6 compliance filter.
+ * Delegates to runComplianceFilter() — expanded from 2 patterns to 10 + intent-aware disclosures.
+ * Preserves original Result<string, string> return signature.
  */
 export function validateOutputCompliance(response: string): Result<string, string> {
-  // We block absolute guarantees but whitelist protective educational statements
-  const blockedTerms = /(guarantees?|assured|promise|risk-free|100% safe|sure shot|best fund|no\. 1|target return|cannot lose)/i;
-  const whitelistTerms = /(no guarantee|not guarantee|cannot guarantee|never guarantee|no assured|not assured|not risk-free|not 100% safe|no assurance)/i;
-  
-  const isGuaranteeBlocked = blockedTerms.test(response) && !whitelistTerms.test(response);
-  
-  if (response && isGuaranteeBlocked) {
-    console.warn("Governance Violation Intercepted at Layer 5.");
-    return {
-      success: false,
-      error: "I cannot provide guaranteed return forecasts on these instruments. We should always evaluate investments based on your risk profile and long-term asset allocation strategy."
-    };
+  // Services.ts does not have intent context — uses GENERAL intent for baseline check
+  const result = runComplianceFilter(response, 'GENERAL');
+
+  if (!result.passed) {
+    return { success: false, error: result.finalResponse };
   }
 
-  return { success: true, data: response };
+  return { success: true, data: result.finalResponse };
 }
+
+// Re-export all governance layers for unified import path
+export * from './threatIsolation';
+export * from './domainClassifier';
+export * from './financialTwinValidator';
+export * from './constitution';
+export * from './engineDirector';
+export * from './outputSchema';
+export * from './complianceFilter';
+export * from './auditTrail';

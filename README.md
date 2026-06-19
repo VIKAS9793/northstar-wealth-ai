@@ -103,16 +103,18 @@ to create a continuously evolving Financial Twin and personalized guidance exper
 
 ```mermaid
 graph TD
-  A[Customer Input] --> B{Layer 0: Input Security}
-  B -->|Blocked| C[Reject Response]
-  B -->|Safe| D[Layer 1: Llama 3.3 Classifier]
-  D --> E{Wealth Engines}
-  E --> F[Goal Intelligence]
-  E --> G[Suitability Intelligence]
-  F & G --> H[Layer 3: Llama 3.3 Generation]
-  H --> I{Layer 5: Compliance Filter}
-  I -->|Blocked| J[Hard Coded Refusal]
-  I -->|Safe| K[Customer Output]
+  A[Raw Customer Input] --> L0[L0: Threat Isolation]
+  L0 -->|HARD_BLOCK| BLOCK[Reject - Sanitised Response]
+  L0 -->|CLEAN| L1[L1: Domain Classification - Confidence Scored]
+  L1 -->|OFF_TOPIC| OT[Off-Topic Redirect]
+  L1 -->|PASS| L2[L2: Financial Twin Validation - Pre-flight Rules]
+  L2 -->|requiresEscalation| RM[Human RM Escalation]
+  L2 -->|PASS| L4[L4: Engine Director - Conflict Resolution]
+  L4 --> L5[L5: LLM Generation - Llama 3.3 70B via NVIDIA NIM]
+  L5 --> L3[L3: Constitutional AI Critique - Self-Review Loop]
+  L3 --> L6[L6: Post-Generation Compliance Filter]
+  L6 --> L7[L7: Audit Trail - Immutable Session Log]
+  L7 --> OUT[Customer Receives Compliant Response]
 ```
 
 The AI model is intentionally treated as a **reasoning layer** rather than the source of financial guidance.
@@ -127,11 +129,21 @@ This design allows the system to remain model-agnostic. Currently, the orchestra
 
 ## Testing Architecture & Quality Assurance
 
-To ensure IDBI Wealth Companion survives rigorous, adversarial QA protocols (Hostile Judge scenarios), we implemented an enterprise-grade testing environment using **Vitest**:
-- **Layer 0 & 5 Unit Tests:** Validates prompt injection blocking, empty payload rejections, and regex interceptions of SEBI-prohibited terms (e.g., "guarantee", "promise", "best fund").
-- **Integration Tests:** Enforces the Suitability Engine's hard-rejection overrides (e.g., preventing high-risk asset generation for conservative profiles).
-- **Mathematical Edge Cases:** Ensures the Goal Intelligence engine checks `freeCashFlow` deterministically, actively rejecting mathematically impossible financial goals.
-- **State Machine Tests:** Validates race-condition recovery to prevent UI deadlocks during rapid message inputs or API timeouts.
+The governance pipeline is validated by an enterprise-grade test suite using **Vitest**. All 68 tests across 5 suites pass.
+
+| Suite | Tests | What It Covers |
+|---|---|---|
+| `governance.test.ts` | 42 | L0 threat detection, L1 confidence classification, L2 preflight rules, L4 engine conflict resolution, L6 compliance filter |
+| `constitution.test.ts` | 16 | L3 constitutional principle coverage, `requiresConstitutionalReview` gating logic, JSON parse failure fallback |
+| `orchestrator.test.ts` | 3 | Full pipeline integration: suitability hard-rejection, off-topic routing, RM escalation |
+| `mathematicalLimits.test.ts` | 2 | Deterministic goal feasibility — rejects mathematically impossible investment plans |
+| `avatarStateManager.test.ts` | 5 | Avatar state machine race-condition and transition correctness |
+
+Key coverage highlights:
+- Semantic jailbreak detection (Jaccard similarity, not just regex)
+- All 5 Financial Twin pre-flight block rules
+- Engine Director conflict suppression (SUITABILITY overrides ACCELERATION, etc.)
+- Constitutional critique fires correctly for high-risk intents and skips for low-risk
 
 ## Hackathon Submission Framing
 

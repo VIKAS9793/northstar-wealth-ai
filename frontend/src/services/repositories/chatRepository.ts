@@ -5,6 +5,7 @@ export interface ChatRequestPayload {
   message: string;
   customerProfile: FinancialTwinProfile;
   chatHistory?: { role: string; content: string }[];
+  sessionId?: string;
   onMetadata?: (intent: string, wasComplianceBlocked: boolean) => void;
   onChunk?: (text: string) => void;
 }
@@ -36,7 +37,10 @@ export async function sendChatMessage(payload: ChatRequestPayload, retries = 1):
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(payload.sessionId ? { "x-session-id": payload.sessionId } : {}),
+      },
       body: JSON.stringify({
         message: payload.message,
         customerProfile: payload.customerProfile,
