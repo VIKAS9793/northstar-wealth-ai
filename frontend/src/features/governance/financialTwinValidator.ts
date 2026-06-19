@@ -19,10 +19,6 @@ export interface TwinValidationResult {
   preflightBlocks: PreflightBlock[];
   enrichedContext: string;
   requiresEscalation: boolean;
-  computedMetrics: {
-    freeCashFlow: number;
-    emiBurdenPercent: number;
-  };
 }
 
 /**
@@ -147,6 +143,5 @@ export function validateFinancialTwin(
     preflightBlocks,
     enrichedContext,
     requiresEscalation,
-    computedMetrics: { freeCashFlow, emiBurdenPercent },
   };
 }

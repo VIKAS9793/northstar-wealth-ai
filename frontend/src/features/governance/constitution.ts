@@ -167,7 +167,7 @@ export async function runConstitutionalCritique(
     } catch {
       // JSON parse failure — treat as compliant, pass draft through
       console.warn('[L3-CONSTITUTION] JSON parse failed — passing draft through');
-      return buildPassthrough(draftResponse, true);
+      return buildPassthrough(draftResponse);
     }
 
     const requiresRevision = !!parsed.requires_revision && !!parsed.revised_response;
@@ -194,11 +194,11 @@ export async function runConstitutionalCritique(
   } catch (error) {
     // Network error, timeout, or any unexpected failure — never block
     console.warn('[L3-CONSTITUTION] Review failed, passing draft through:', error);
-    return buildPassthrough(draftResponse, true);
+    return buildPassthrough(draftResponse);
   }
 }
 
-function buildPassthrough(draft: string, reviewRan: boolean): ConstitutionalReviewResult {
+function buildPassthrough(draft: string, reviewRan: boolean = true): ConstitutionalReviewResult {
   return {
     violations: [],
     requiresRevision: false,

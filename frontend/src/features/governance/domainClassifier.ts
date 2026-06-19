@@ -40,7 +40,7 @@ const FINANCIAL_ENTITIES: string[] = [
   'equity', 'debt', 'elss', 'nfo', 'nav', 'aum', 'lumpsum', 'step-up',
   'rebalance', 'allocation', 'fd', 'ppf', 'nps', 'insurance', 'term plan',
   'emergency fund', 'home loan', 'emi', 'income', 'salary', 'bonus',
-  'tax', '80c', 'ltcg', 'stcg', 'dividend', 'folio', 'kyc', 'mandate',
+  'tax', '80c', 'ltcg', 'stcg',
 ];
 
 // Maximum confidence boost from financial entity presence
@@ -134,8 +134,8 @@ export function classifyWithConfidence(message: string): ClassificationResult {
     if (rule.pattern.test(message)) {
       const confidence = Math.min(rule.baseConfidence + entityBoost, 0.99);
       const requiresProbing =
-        confidence < OOD_CONFIDENCE_THRESHOLD ||
-        (wordCount < 4 && rule.intent !== 'OFF_TOPIC');
+        confidence < 0.75 ||
+        wordCount < 4;
 
       console.log(
         `[L1-CLASSIFIER] intent: ${rule.intent} | bias: ${rule.bias} | conf: ${confidence.toFixed(2)} | entities: [${entities.join(', ')}]`
@@ -163,7 +163,7 @@ export function classifyWithConfidence(message: string): ClassificationResult {
     };
   }
 
-  const generalConfidence = Math.min(0.58 + entityBoost, 0.80);
+  const generalConfidence = Math.min(0.60 + entityBoost, 0.80);
   console.log(`[L1-CLASSIFIER] intent: GENERAL | conf: ${generalConfidence.toFixed(2)} | entities: [${entities.join(', ')}]`);
 
   return {

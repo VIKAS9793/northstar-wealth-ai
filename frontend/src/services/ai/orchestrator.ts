@@ -311,8 +311,10 @@ export async function generateAIResponse(
   // ══════════════════════════════════════════════════════════════════════════
   const { temperature, tone } = getDynamicParams(compatCls);
 
-  const freeCashFlow = twinValidation.computedMetrics.freeCashFlow;
-  const emiBurdenPct = twinValidation.computedMetrics.emiBurdenPercent.toFixed(1);
+  const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
+  const emiBurdenPct = profile.telemetry.monthly_inflow > 0
+    ? (profile.telemetry.total_emis / profile.telemetry.monthly_inflow * 100).toFixed(1)
+    : '0.0';
   const discretionaryRatio = ((profile.telemetry.discretionary_spend / profile.telemetry.monthly_inflow) * 100).toFixed(1);
   const formattedGoals = profile.goals
     .map(g => `- ${g.name} (Target: ₹${g.target.toLocaleString()}, Progress: ${g.progressPercent}%)`)
