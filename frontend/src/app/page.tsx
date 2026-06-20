@@ -7,6 +7,7 @@ import { MobileBankingDashboard } from "@/features/banking/MobileBankingDashboar
 import { FinancialTwinProfile } from "@/features/financial-twin/types";
 import { ChatContainer } from "@/features/chat/ChatContainer";
 import { MessageSquare, X } from "lucide-react";
+import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 
 type AppState = "WELCOME" | "RISK_PROFILE" | "DASHBOARD";
 
@@ -91,6 +92,9 @@ export default function HomePage() {
             <MessageSquare className="w-6 h-6 text-brand-navy" />
           </button>
         )}
+
+        {/* Legal Disclaimer — fixed footer, always visible */}
+        <LegalDisclaimer />
       </div>
     );
   }

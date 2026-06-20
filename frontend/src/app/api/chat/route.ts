@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateAIResponse } from '@/services/ai/orchestrator';
+import { generateAIResponse, OrchestratorPayload } from '@/services/ai/orchestrator';
 
 /**
  * API Route: /api/chat
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       customerProfile,
       chatHistory ?? [],
       sessionId
-    );
+    ) as OrchestratorPayload;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

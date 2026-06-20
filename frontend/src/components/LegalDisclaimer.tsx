@@ -10,10 +10,10 @@ import React from "react";
  */
 export function LegalDisclaimer(): React.ReactElement {
   return (
-    <div className="w-full z-50 bg-red-950/90 border-t border-red-900/50 text-center px-4 py-3 shrink-0">
-      <p className="text-xs sm:text-sm text-red-200/90 font-medium max-w-7xl mx-auto tracking-wide">
-        <span className="font-bold text-red-100 uppercase mr-2">Prototype Disclaimer:</span>
-        This is a Proof of Concept (PoC) for the IDBI Innovate Hackathon. The &quot;IDBI&quot; name and trademarks belong to their respective registered owners. This project is not affiliated with, endorsed by, or owned by IDBI Bank.
+    <div className="w-full shrink-0 bg-gray-950/95 border-t border-gray-800 px-4 py-1.5">
+      <p className="text-[10px] text-gray-500 text-center leading-tight max-w-7xl mx-auto">
+        <span className="font-semibold text-gray-400">Prototype Disclaimer:</span>{" "}
+        PoC for IDBI Innovate Hackathon. Not affiliated with, endorsed by, or owned by IDBI Bank. "IDBI" is a registered trademark of its respective owners.
       </p>
     </div>
   );

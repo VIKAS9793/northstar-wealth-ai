@@ -3,6 +3,8 @@ import { FinancialTwinProfile } from "@/features/financial-twin/types";
 import { WealthPortfolioSnapshot } from "@/features/financial-twin/WealthPortfolioSnapshot";
 import { CreditCard, Wallet, ArrowRightLeft, ShieldCheck } from "lucide-react";
 import { WealthInsightModal } from "./WealthInsightModal";
+import { GoalTracker } from "@/features/goals/GoalTracker";
+import { FinancialTwinCard } from "@/features/twin/FinancialTwinCard";
 
 interface Props {
   profile: FinancialTwinProfile;
@@ -99,6 +101,12 @@ export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }
             <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 text-center leading-tight">Safety<br />Net</span>
           </button>
         </div>
+      </div>
+
+      {/* Financial Twin + Goal Tracker */}
+      <div className="px-4 space-y-4 mt-2 mb-6">
+        <FinancialTwinCard profile={profile} />
+        <GoalTracker goals={profile.goals} />
       </div>
 
       {/* Wealth Integration Module */}

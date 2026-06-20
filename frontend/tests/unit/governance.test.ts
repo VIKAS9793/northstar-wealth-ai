@@ -81,7 +81,7 @@ const healthyProfile: FinancialTwinProfile = {
   name: 'Test User',
   age: 32,
   income: 1200000,
-  persona_type: 'The Planner',
+  persona_type: 'Family Planner',
   risk_profile: 'Moderate',
   sip_amount: 10000,
   total_invested: 500000,

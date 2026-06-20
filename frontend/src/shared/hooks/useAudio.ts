@@ -90,5 +90,17 @@ export function useAudio() {
     }
   }, [getCtx]);
 
-  return { playSound };
+  // Called synchronously on user gesture (iOS/Safari requirement).
+  // Initializes ctxRef.current and moves it to 'running' state so that
+  // subsequent playSound() calls from async callbacks are not blocked.
+  // A throwaway new AudioContext() in the click handler would NOT work here —
+  // it has no connection to ctxRef.current and closing it unlocks nothing.
+  const prewarm = useCallback(() => {
+    const ctx = getCtx();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume();
+    }
+  }, [getCtx]);
+
+  return { playSound, prewarm };
 }

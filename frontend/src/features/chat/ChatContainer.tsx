@@ -76,7 +76,7 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
   const streamTextRef = useRef<string>("");
   const isSendingRef = useRef<boolean>(false);
   const streamRafRef = useRef<number | null>(null);
-  const { playSound } = useAudio();
+  const { playSound, prewarm } = useAudio();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -120,6 +120,8 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
   };
 
   const handleSend = async (overrideText?: string) => {
+    prewarm(); // iOS/Safari: unlock AudioContext synchronously on user gesture
+               // Must be before any await — browser gesture scope ends at first suspend point
     const textToSend = overrideText || input.trim();
     if (!textToSend || isLoading || isSendingRef.current) return;
 
