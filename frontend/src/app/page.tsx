@@ -86,7 +86,7 @@ export default function HomePage() {
           <button 
             onClick={() => setIsChatOpen(true)}
             className="absolute right-6 w-14 h-14 bg-brand-gold rounded-full shadow-2xl shadow-brand-navy/20 flex items-center justify-center hover:bg-amber-400 hover:scale-105 transition-all z-30 group"
-            style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+            style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }}
           >
             <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-slate-900 flex items-center justify-center"></div>
             <MessageSquare className="w-6 h-6 text-brand-navy" />

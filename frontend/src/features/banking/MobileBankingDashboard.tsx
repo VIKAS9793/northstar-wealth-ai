@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FinancialTwinProfile } from "@/features/financial-twin/types";
 import { WealthPortfolioSnapshot } from "@/features/financial-twin/WealthPortfolioSnapshot";
-import { CreditCard, Wallet, ArrowRightLeft, ShieldCheck } from "lucide-react";
+import { CreditCard, Wallet, ArrowRightLeft, ShieldCheck, ChevronDown, ChevronUp, User } from "lucide-react";
 import { WealthInsightModal } from "./WealthInsightModal";
 import { GoalTracker } from "@/features/goals/GoalTracker";
 import { FinancialTwinCard } from "@/features/twin/FinancialTwinCard";
@@ -14,6 +14,17 @@ interface Props {
 
 export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }: Props) {
   const [activeModal, setActiveModal] = useState<"SIP Health" | "Goal Track" | "Spending Habits" | "Safety Net" | null>(null);
+  // ③ Collapsed by default — progressive disclosure. JTBD: see number → ask Dhan.
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Summary pills for the collapsed trigger row
+  const emergencyStatus = profile.emergency_fund_months >= 6
+    ? { label: `${profile.emergency_fund_months}m fund`, color: "bg-emerald-100 text-emerald-700" }
+    : profile.emergency_fund_months >= 3
+    ? { label: `${profile.emergency_fund_months}m fund`, color: "bg-amber-100 text-amber-700" }
+    : { label: "Fund gap", color: "bg-rose-100 text-rose-700" };
+
+  const goalCount = profile.goals.length;
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-950 overflow-y-auto">
@@ -42,8 +53,8 @@ export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }
         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
       </div>
 
-      {/* Header */}
-      <div className="bg-brand-navy px-6 pt-6 pb-24 rounded-b-[40px] shadow-sm relative">
+      {/* ─── HEADER ───────────────────────────────────────────────────────────── */}
+      <div className="bg-brand-navy px-6 pt-6 pb-6 rounded-b-[40px] shadow-sm">
         <div className="flex justify-between items-start">
           <div>
             <p className="text-indigo-200 text-sm font-medium">Welcome back,</p>
@@ -57,45 +68,36 @@ export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }
             {profile.name.charAt(0)}
           </button>
         </div>
-
-        {/* Main Balance Card */}
-        <div className="absolute -bottom-16 left-6 right-6 bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-xl border border-gray-100 dark:border-slate-800">
-          <div className="flex justify-between items-center mb-1">
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Investable Surplus</p>
-            <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] px-2 py-0.5 rounded-full font-bold">OPTIMAL</span>
-          </div>
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white">
-            ₹{(profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis).toLocaleString('en-IN')}
-          </h2>
-          <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-brand-navy"></span> A/c ending in •••• 4092
-          </p>
-        </div>
       </div>
 
-      {/* Wealth Quick Actions Grid */}
-      <div className="px-6 mt-24 mb-6">
+      {/* ─── ① PORTFOLIO SNAPSHOT ─────────────────────────────────────────────── */}
+      <div className="mt-4 mb-2">
+        <WealthPortfolioSnapshot profile={profile} />
+      </div>
+
+      {/* ─── ② QUICK ACTIONS ──────────────────────────────────────────────────── */}
+      <div className="px-6 mt-4 mb-4">
         <div className="grid grid-cols-4 gap-4">
           <button onClick={() => setActiveModal("SIP Health")} className="flex flex-col items-center gap-2 group">
-            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-teal-50 dark:group-hover:bg-teal-900/20 transition-colors">
+            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-teal-50 transition-colors">
               <ArrowRightLeft className="w-6 h-6 text-teal-600 dark:text-teal-400" />
             </div>
             <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 text-center leading-tight">SIP<br />Health</span>
           </button>
           <button onClick={() => setActiveModal("Goal Track")} className="flex flex-col items-center gap-2 group">
-            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20 transition-colors">
+            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-indigo-50 transition-colors">
               <Wallet className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
             <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 text-center leading-tight">Goal<br />Track</span>
           </button>
           <button onClick={() => setActiveModal("Spending Habits")} className="flex flex-col items-center gap-2 group">
-            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-rose-50 dark:group-hover:bg-rose-900/20 transition-colors">
+            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-rose-50 transition-colors">
               <CreditCard className="w-6 h-6 text-rose-600 dark:text-rose-400" />
             </div>
             <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 text-center leading-tight">Spending<br />Habits</span>
           </button>
           <button onClick={() => setActiveModal("Safety Net")} className="flex flex-col items-center gap-2 group">
-            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-amber-50 dark:group-hover:bg-amber-900/20 transition-colors">
+            <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-slate-800 group-hover:bg-amber-50 transition-colors">
               <ShieldCheck className="w-6 h-6 text-amber-600 dark:text-amber-400" />
             </div>
             <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 text-center leading-tight">Safety<br />Net</span>
@@ -103,21 +105,62 @@ export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }
         </div>
       </div>
 
-      {/* Financial Twin + Goal Tracker */}
-      <div className="px-4 space-y-4 mt-2 mb-6">
-        <FinancialTwinCard profile={profile} />
-        <GoalTracker goals={profile.goals} />
-      </div>
+      {/* ─── ③ PROGRESSIVE DETAIL DRAWER ──────────────────────────────────────── */}
+      {/*
+        Default: collapsed. Shows a single trigger row with summary pills.
+        Tap → expands to reveal FinancialTwinCard + GoalTracker.
+        This keeps the initial screen: portfolio → actions → chat FAB.
+        Detail is available on demand, not forced above the fold.
+      */}
+      <div className="mx-4 mb-24 rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        {/* Trigger row — always visible */}
+        <button
+          onClick={() => setIsDetailOpen(prev => !prev)}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+              <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">Your Financial Details</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Risk profile · Goals · Emergency fund</p>
+            </div>
+          </div>
+          {/* Summary pills — visible only when collapsed */}
+          <div className="flex items-center gap-2">
+            {!isDetailOpen && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                  {profile.risk_profile}
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300">
+                  {goalCount} goal{goalCount !== 1 ? "s" : ""}
+                </span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${emergencyStatus.color}`}>
+                  {emergencyStatus.label}
+                </span>
+              </div>
+            )}
+            <div className="text-gray-400 ml-1 shrink-0">
+              {isDetailOpen
+                ? <ChevronUp className="w-4 h-4" />
+                : <ChevronDown className="w-4 h-4" />
+              }
+            </div>
+          </div>
+        </button>
 
-      {/* Wealth Integration Module */}
-      <div className="px-6 mb-24">
-        <div className="flex justify-between items-end mb-3">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">NorthStar Wealth</h3>
-          <button className="text-xs text-brand-navy font-bold flex items-center underline">
-            Details
-          </button>
+        {/* Expandable content — smooth max-height CSS transition */}
+        <div
+          className="overflow-hidden transition-all duration-300 ease-in-out"
+          style={{ maxHeight: isDetailOpen ? "1000px" : "0px" }}
+        >
+          <div className="border-t border-gray-100 dark:border-slate-800 px-3 pb-3 pt-3 space-y-3">
+            <FinancialTwinCard profile={profile} />
+            <GoalTracker goals={profile.goals} />
+          </div>
         </div>
-        <WealthPortfolioSnapshot profile={profile} />
       </div>
     </div>
   );

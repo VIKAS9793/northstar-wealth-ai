@@ -59,6 +59,8 @@ These observations form the foundation of the product's architecture, conversati
 3. **Hide the Architecture**: Customers should never see "Financial Twin" or "Behavioral Engine" in the UI. Those are backend orchestration layers.
 4. **Guided First, Chat Second**: The Avatar functions like an RM. It guides the user with contextual options (My Goals, Emergency Planning) before expecting free-text input. Cognitive load is the enemy.
 5. **Assumption-Led Advisory Principle**: Demonstrate value before demanding data. Use available Twin data to make transparent assumptions, show a preliminary estimate, and then invite customer corrections rather than forcing a lengthy onboarding questionnaire.
+6. **Progressive Disclosure & Cognitive Anchoring**: Prevent decision fatigue by using the top of the dashboard as an "Emotional Anchor" (Portfolio Value and Returns only), hiding complex diagnostic data (Risk Profile, Emergency Fund gaps, Goal tracking) inside a collapsible "Financial Details" drawer. Do not duplicate data across views.
+7. **Responsive Omnichannel Integration**: The app must integrate seamlessly inside existing mobile banking real estate (full screen on mobile), while gracefully scaling to a premium, device-framed simulator layout on desktop browsers to prove cross-platform web/mobile readiness without breaking the core mobile-first UX.
 
 ---
 
