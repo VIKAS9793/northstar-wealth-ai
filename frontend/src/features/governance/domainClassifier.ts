@@ -82,7 +82,7 @@ const CLASSIFICATION_RULES: PatternRule[] = [
   // without invoking the LLM. Pattern mirrors isTaxPlanningQuery() in taxRules.ts.
   // If you update the pattern here, update taxRules.ts#isTaxPlanningQuery in the same commit.
   {
-    pattern: /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving|tax plan|plan.*tax|my tax|tax.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax|what tax|exact tax|tax liabilit|tax outgo|tax position|declare.*itr|what to declare)/i,
+    pattern: /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving|tax plan|plan.*tax|my tax|tax.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax|what tax|exact tax|tax liabilit|tax outgo|tax position|declare.*itr|what to declare|pay to govt|pay to government|tax bachana|tax bacha|tax kam|pay less tax|reduce tax|tax implication|tax calculation|tax impact|tax exposure|deduction.*my)/i,
     intent: 'TAX_PLANNING',
     bias: 'NONE',
     baseConfidence: 0.97,

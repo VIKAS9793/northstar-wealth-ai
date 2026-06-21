@@ -8,6 +8,7 @@
 
 import { IntentType } from './domainClassifier';
 import { FinancialMetrics } from './outputSchema';
+import { TAX_ESCALATION_RESPONSE } from './taxRules';
 
 export interface ComplianceResult {
   passed: boolean;
@@ -50,6 +51,17 @@ const ADVISORY_OVERREACH_PATTERNS: RegExp[] = [
   /\bno\.?\s?1 fund\b/i,
   /\bbest performing fund\b/i,
   /\bbuy (this|that|the) fund\b/i,
+];
+
+// Prohibited tax advisory — scanning LLM output for tax calculation phrases
+const ADVISORY_TAX_OVERREACH_PATTERNS: RegExp[] = [
+  /\byour tax liability is\b/i,
+  /\byour taxable amount is\b/i,
+  /\byou (will|need to) pay .* in taxes\b/i,
+  /\btax you owe is\b/i,
+  /\byou should claim under section\b/i,
+  /\byour total tax outgo\b/i,
+  /\btax calculation.*\₹\b/i,
 ];
 
 // Mandatory disclosures per intent — injected below every response
@@ -121,6 +133,16 @@ export function runComplianceFilter(
     }
   }
 
+  // Check tax advisory overreach
+  let isTaxViolation = false;
+  for (const pattern of ADVISORY_TAX_OVERREACH_PATTERNS) {
+    if (pattern.test(response)) {
+      violations.push(`ADVISORY_TAX_OVERREACH: ${pattern.source}`);
+      isTaxViolation = true;
+      break;
+    }
+  }
+
   // Inject mandatory disclosures for this intent
   const intentKey = intent as IntentType;
   const mandatoryDisclosure = MANDATORY_DISCLOSURES[intentKey];
@@ -130,7 +152,10 @@ export function runComplianceFilter(
 
   // Build final response
   const wasReplaced = violations.length > 0;
-  const baseResponse = wasReplaced ? COMPLIANCE_FALLBACK_RESPONSE : response;
+  let baseResponse = response;
+  if (wasReplaced) {
+    baseResponse = isTaxViolation ? TAX_ESCALATION_RESPONSE : COMPLIANCE_FALLBACK_RESPONSE;
+  }
 
   const fullResponse =
     disclosures.length > 0

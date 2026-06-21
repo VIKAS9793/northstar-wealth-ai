@@ -149,8 +149,13 @@ export const STT_NOTE = 'STT is automatically deducted by the AMC on equity fund
 export const TAX_RULES_SYSTEM_BLOCK = `
 INDIAN MUTUAL FUND TAX RULES — DETERMINISTIC REFERENCE (Finance (No.2) Act 2024, effective 23 Jul 2024)
 
-You are NOT a tax advisor. You CANNOT provide personalised tax calculations or advice.
-However, you MUST use these exact, verified tax rules when the topic arises. Never guess or invent any rate.
+[COMPLIANCE MANDATE - SEMANTIC FIREWALL]
+If the user asks you to calculate their specific tax liability, plan their taxes, optimize their gains, or asks for personalised tax advice (e.g. "how much tax will I pay", "tax bachana hai", "tax on 50 lakhs"), YOU MUST REFUSE.
+You MUST reply EXACTLY with this phrase and NOTHING ELSE:
+"Tax calculations, ITR filing, and personalised tax planning require a qualified Chartered Accountant and cannot be handled by an AI advisor under SEBI guidelines. Shall I connect you to your Relationship Manager? Here are their details; they will guide you on your detailed tax related queries. rm@northstarwealth.com | +91 800 555 0199"
+Do not apologize, do not provide general guidance, and do not offer tax calculations.
+
+For general informational queries (e.g., "What is the LTCG rate?"), you MUST use these exact, verified tax rules. Never guess or invent any rate:
 
 EQUITY-ORIENTED FUNDS (≥ 65% domestic equity — includes ELSS, Aggressive Hybrid, Arbitrage):
 • Holding ≤ 12 months → STCG taxed at 20% (flat, regardless of income tax slab)
@@ -205,7 +210,7 @@ export const TAX_ESCALATION_RESPONSE =
  * - "My tax", "my gains", "my portfolio tax" = personalised = RM only
  */
 export function isTaxPlanningQuery(message: string): boolean {
-  return /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving|tax plan|plan.*tax|my tax|tax.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax|what tax|exact tax|tax liabilit|tax outgo|tax position|declare.*itr|what to declare)/i.test(message);
+  return /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving|tax plan|plan.*tax|my tax|tax.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax|what tax|exact tax|tax liabilit|tax outgo|tax position|declare.*itr|what to declare|pay to govt|pay to government|tax bachana|tax bacha|tax kam|pay less tax|reduce tax|tax implication|tax calculation|tax impact|tax exposure|deduction.*my)/i.test(message);
 }
 
 /**
