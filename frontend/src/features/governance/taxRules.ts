@@ -205,7 +205,7 @@ export const TAX_ESCALATION_RESPONSE =
  * - "My tax", "my gains", "my portfolio tax" = personalised = RM only
  */
 export function isTaxPlanningQuery(message: string): boolean {
-  return /\b(calculat|calculer|comput|minimis|minimiz|optimis|optimiz|harvest|save tax|tax saving strateg|tax plan|plan my tax|my tax|tax on my|tax implication.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais.*statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax (will|do|should) i|what tax (will|do|should) i|tell me my tax|exact tax|tax liabilit|tax outgo|tax position|tax on my portfolio|tax on my sip|tax on my mutual|declare.*itr|what to declare)\b/i.test(message);
+  return /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving|tax plan|plan.*tax|my tax|tax.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax|what tax|exact tax|tax liabilit|tax outgo|tax position|declare.*itr|what to declare)/i.test(message);
 }
 
 /**
