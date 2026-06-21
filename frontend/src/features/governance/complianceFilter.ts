@@ -64,10 +64,10 @@ const MANDATORY_DISCLOSURES: Partial<Record<IntentType, string>> = {
 
   ACCELERATION:
     'Step-up SIP recommendations are based on your current financial profile. ' +
-    'Actual returns may vary. Please consult your IDBI Relationship Manager for personalised guidance.',
+    'Actual returns may vary. Please consult your dedicated Relationship Manager for personalised guidance.',
 
   SUITABILITY_CHECK:
-    'This guidance reflects your registered risk profile with IDBI Bank. ' +
+    'This guidance reflects your registered risk profile. ' +
     'To revise your risk profile, please contact your Relationship Manager.',
 
   EDUCATION:
@@ -78,7 +78,7 @@ const MANDATORY_DISCLOSURES: Partial<Record<IntentType, string>> = {
 const COMPLIANCE_FALLBACK_RESPONSE =
   "I want to make sure I'm giving you balanced and accurate guidance. " +
   "Based on your financial profile, I recommend reviewing your options with your " +
-  "IDBI Relationship Manager who can provide personalised advice aligned with your goals. " +
+  "Relationship Manager who can provide personalised advice aligned with your goals. " +
   "Would you like me to help you prepare for that conversation?";
 
 /**

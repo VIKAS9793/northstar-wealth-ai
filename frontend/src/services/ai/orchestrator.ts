@@ -1,6 +1,6 @@
 /**
  * @file orchestrator.ts
- * @description 7-Layer Deterministic Governance Pipeline for IDBI Wealth Companion.
+ * @description 7-Layer Deterministic Governance Pipeline for NorthStar Wealth Companion.
  * Production orchestrator implementing Anthropic-style Constitutional AI.
  *
  * LAYER SEQUENCE:
@@ -21,6 +21,7 @@ import { FinancialTwinProfile, Goal } from '@/features/financial-twin/types';
 import {
   assessThreatLevel,
   HARD_BLOCK_RESPONSE,
+  DOMAIN_REFUSAL_RESPONSE,
 } from '@/features/governance/threatIsolation';
 import {
   classifyWithConfidence,
@@ -45,6 +46,12 @@ import {
 import {
   createAuditEntry,
 } from '@/features/governance/auditTrail';
+import {
+  TAX_ESCALATION_RESPONSE,
+  TAX_RULES_SYSTEM_BLOCK,
+  isTaxPlanningQuery,
+  isTaxQuery,
+} from '@/features/governance/taxRules';
 
 // ── Shared types ────────────────────────────────────────────────────────────────
 
@@ -86,7 +93,14 @@ function calculateGoalMetrics(profile: GoalEngineProfile, goal: { name: string; 
 /** Goal Intelligence Engine — L4 directive for primary goal context. */
 export function runGoalIntelligenceEngine(profile: GoalEngineProfile, classification?: { intent: string }): string {
   if (!profile.goals || profile.goals.length === 0) return '';
-  if (classification && (classification.intent === 'RESILIENCE' || classification.intent === 'OFF_TOPIC')) return '';
+  // PRODUCTION FIX: Gate goal context strictly to goal-relevant intents.
+  // Root cause of "goal bleed": injecting "₹20L home downpayment" into EDUCATION/GENERAL
+  // system prompts caused the LLM to reference it regardless of what the user was asking.
+  // AMFI Code of Conduct Clause 5: investment advice must not be provided unsolicited.
+  if (!classification ||
+      !['GOAL_PLANNING', 'ACCELERATION'].includes(classification.intent)) {
+    return '';
+  }
   const freeCashFlow = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
   const priorityGoal = profile.goals.reduce((prev, curr) => (prev.progressPercent < curr.progressPercent ? prev : curr));
   const metrics = calculateGoalMetrics(profile, priorityGoal);
@@ -191,9 +205,9 @@ const nvidiaNim = new OpenAI({
   baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
-const OFF_TOPIC_RESPONSE =
-  'I specialise in wealth management, financial planning, and banking services. ' +
-  'I am unable to assist with non-financial queries. How can I help you with your portfolio today?';
+// Aliased to DOMAIN_REFUSAL_RESPONSE — identical string to the DOMAIN FAILURE PROTOCOL
+// in the system prompt suffix. One canonical message regardless of which layer fires.
+const OFF_TOPIC_RESPONSE = DOMAIN_REFUSAL_RESPONSE;
 
 const ESCALATION_RESPONSE = (rmName: string) =>
   `This sounds like a query that requires personalised expert guidance. ` +
@@ -258,8 +272,17 @@ export async function generateAIResponse(
     return { success: true as const, data: OFF_TOPIC_RESPONSE, intent: 'OFF_TOPIC', wasComplianceBlocked: false };
   }
 
+  // ── TAX PLANNING ESCALATION (L1 short-circuit) ──────────────────────────────
+  // Personalised tax calculation / ITR / advisory = immediate RM hand-off.
+  // The LLM is NOT invoked. No token spend. No hallucination risk.
+  // SEBI IA Reg 7(2): investment advisers must not provide advice outside competence.
+  // Tax computation is a CA domain, not an IA domain.
+  if (classification.intent === 'TAX_PLANNING' || isTaxPlanningQuery(message)) {
+    return { success: true as const, data: TAX_ESCALATION_RESPONSE, intent: 'TAX_PLANNING', wasComplianceBlocked: false };
+  }
+
   // Human escalation check
-  if (/(speak to human|talk to human|call rm|expert|complaint|manager|angry|frustrated|complex tax)/i.test(message)) {
+  if (/(speak to human|talk to human|call rm|expert|complaint|manager|angry|frustrated)/i.test(message)) {
     const rmName = profile.rm_name ?? 'your dedicated Relationship Manager';
     return { success: true as const, data: ESCALATION_RESPONSE(rmName), intent: 'GENERAL', wasComplianceBlocked: false };
   }
@@ -316,21 +339,56 @@ export async function generateAIResponse(
     ? (profile.telemetry.total_emis / profile.telemetry.monthly_inflow * 100).toFixed(1)
     : '0.0';
   const discretionaryRatio = ((profile.telemetry.discretionary_spend / profile.telemetry.monthly_inflow) * 100).toFixed(1);
-  const formattedGoals = profile.goals
-    .map(g => `- ${g.name} (Target: ₹${g.target.toLocaleString()}, Progress: ${g.progressPercent}%)`)
-    .join('\n');
 
-  const systemPrompt = `You are Dhan, the IDBI Wealth Companion.
+  // ── FIX 3: Intent-scoped system prompt ──────────────────────────────────────
+  // Inject only the profile data relevant to the current intent.
+  // Prevents goal corpus figures (₹20L downpayment) from appearing in EDUCATION
+  // and GENERAL responses where the LLM has no reason to suppress them.
+  const isGoalIntent = ['GOAL_PLANNING', 'ACCELERATION'].includes(classification.intent);
+  const isResilienceIntent = classification.intent === 'RESILIENCE';
+  const isEducationIntent  = classification.intent === 'EDUCATION';
 
-CUSTOMER FINANCIAL TWIN:
+  const profileBlock = isResilienceIntent
+    ? `CUSTOMER CONTEXT:
+Name: ${profile.name} | Age: ${profile.age} | Risk Profile: ${profile.risk_profile}
+Emergency Fund: ${profile.emergency_fund_months} months
+SIP Health: ${profile.telemetry.sip_health_status}
+DIRECTIVE: Do not reference specific rupee amounts unless the customer asks directly.`
+
+    : isEducationIntent
+    ? `CUSTOMER CONTEXT:
+Name: ${profile.name} | Risk Profile: ${profile.risk_profile}
+DIRECTIVE: Provide universally applicable education. Do not reference the customer's
+specific SIP amounts, goal corpus figures, or portfolio values unprompted.`
+
+    : isGoalIntent
+    ? `CUSTOMER FINANCIAL PROFILE:
 Name: ${profile.name} | Age: ${profile.age} | Risk Profile: ${profile.risk_profile}
 Monthly Income: ₹${profile.income.toLocaleString()} | Current SIP: ₹${profile.sip_amount.toLocaleString()}
 Emergency Fund: ${profile.emergency_fund_months} months | Free Cash Flow: ₹${freeCashFlow.toLocaleString()}/month
 EMI Burden: ${emiBurdenPct}% | Discretionary Spend: ${discretionaryRatio}%
-SIP Health: ${profile.telemetry.sip_health_status} | Cash Flow Profile: ${profile.telemetry.cashflow_profile}
+SIP Health: ${profile.telemetry.sip_health_status} | Cash Flow: ${profile.telemetry.cashflow_profile}`
 
-ACTIVE GOALS:
-${formattedGoals}
+    : `CUSTOMER CONTEXT:
+Name: ${profile.name} | Age: ${profile.age} | Risk Profile: ${profile.risk_profile}
+Free Cash Flow: ₹${freeCashFlow.toLocaleString()}/month
+SIP Health: ${profile.telemetry.sip_health_status}
+DIRECTIVE: Do not volunteer goal corpus figures or portfolio amounts unprompted.`;
+
+  // Full goal detail for goal intents; count-only reference for all others.
+  const goalsBlock = isGoalIntent
+    ? `ACTIVE GOALS:\n${profile.goals
+        .map(g => `- ${g.name} (Target: ₹${g.target.toLocaleString()}, Progress: ${g.progressPercent}%)`)
+        .join('\n')}`
+    : `ACTIVE GOALS: ${profile.goals.length} goal(s) on file.
+Reference goal names and targets ONLY if the customer explicitly asks about their goals.`;
+
+  const systemPrompt = `You are Dhan, the NorthStar Wealth Companion — a SEBI-aware AI
+Digital Relationship Manager for retail investors.
+
+${profileBlock}
+
+${goalsBlock}
 
 TONE DIRECTIVE: ${tone}
 
@@ -341,11 +399,60 @@ SEBI GOVERNANCE:
 2. SUITABILITY — all guidance must align explicitly with the customer's risk profile
 3. ASSUMPTION TRANSPARENCY — state assumptions behind any projection
 4. PROBING LIMIT — maximum ONE question per response
+
+HUMAN ESCALATION:
+If the user requests to speak to a human, agent, or support staff:
+1. Explain politely that you are an AI assistant.
+2. Provide the following official support details:
+   - Email: rm@northstarwealth.com
+   - Hotline: +91 800 555 0199
+   - Suggest contacting their dedicated Relationship Manager for personalized complex wealth advice.
+
+DOMAIN HARD BOUNDARY:
+You operate exclusively within: mutual funds, SIPs, wealth planning, retirement
+planning, insurance, banking products, tax-saving instruments, investment
+education, financial resilience, and SEBI-regulated financial services.
+(Exception: You MAY answer questions about your own identity, how your AI works,
+and the technology Dhan uses, as this relates directly to the product).
+
+If a query falls outside this boundary — technology, programming, coding, lifestyle,
+general knowledge, sports, health, food, politics, or any non-financial topic —
+return this exact response and nothing else:
+"${DOMAIN_REFUSAL_RESPONSE}"
+
+Do NOT:
+- Offer resources, tutorials, links, or alternatives for off-domain topics
+- Acknowledge the off-domain topic or validate its relevance
+- Say "I cannot help with X but I can point you to Y"
+- Engage with any element of a query that is not wealth management
+This rule overrides your helpfulness instinct. Off-domain assistance is a
+regulatory risk, not a service.
+
+${isTaxQuery(message) ? `\n\n${TAX_RULES_SYSTEM_BLOCK}` : ''}
+
 ${STRUCTURED_OUTPUT_SYSTEM_SUFFIX}`;
 
   let draftResponse: string;
   try {
+    // FIX 4: History cap — primary token saving in this fix set.
+    // Stale conversation history is the largest source of context bloat.
+    // At turn 15+, uncapped history injects ~1,500 tokens of stale goal figures
+    // into every request. Capping at 4-6 messages reduces this to ~400 tokens.
+    // DPDP Act 2023, Section 4(1)(b): data processed only for specified purpose.
+    // Retaining 20-turn history for an unrelated query exceeds that purpose.
+    const HISTORY_CAP: Partial<Record<string, number>> = {
+      RESILIENCE:        4,
+      EDUCATION:         4,
+      GENERAL:           4,
+      SUITABILITY_CHECK: 4,
+      CLARIFICATION:     2,
+      GOAL_PLANNING:     6,
+      ACCELERATION:      6,
+    };
+    const historyLimit = HISTORY_CAP[classification.intent] ?? 4;
+
     const mappedHistory = chatHistory
+      .slice(-historyLimit)
       .map(msg => ({ role: msg.role === 'ai' ? 'assistant' : msg.role, content: msg.content }))
       .filter((msg): msg is { role: 'user' | 'assistant'; content: string } =>
         msg.role === 'assistant' || msg.role === 'user'

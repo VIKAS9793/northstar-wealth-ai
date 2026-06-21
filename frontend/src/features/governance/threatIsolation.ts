@@ -16,6 +16,25 @@ export const HARD_BLOCK_RESPONSE =
   "I can only assist with wealth management, financial planning, and banking services. " +
   "Let me know how I can help you with your portfolio or financial goals today.";
 
+/**
+ * CANONICAL domain boundary refusal — single source of truth used by:
+ * 1. OFF_TOPIC_RESPONSE in orchestrator.ts (L1 early-return, fires before LLM)
+ * 2. DOMAIN FAILURE PROTOCOL in outputSchema.ts suffix (LLM-level fallback)
+ *
+ * One string, two reference sites, zero inconsistency.
+ * A user who triggers L1 in one turn and the LLM fallback in a later turn
+ * sees the exact same text both times — not two different refusal messages.
+ *
+ * SEBI IA Reg 2(1)(l): scope boundary must be communicated clearly and consistently.
+ * HARD_BLOCK_RESPONSE can differ — it covers confirmed security threats (L0), not scope.
+ */
+export const DOMAIN_REFUSAL_RESPONSE =
+  "I'm Dhan, your NorthStar Wealth Companion — an AI-powered digital wealth advisor " +
+  "designed for SEBI-regulated financial guidance. My expertise covers mutual funds, " +
+  "SIPs, financial planning, investment education, and goal-based wealth management. " +
+  "I'm unable to assist with this query. " +
+  "What would you like to explore about your financial goals today?";
+
 // Four attack categories covering all known jailbreak archetypes
 const THREAT_PATTERNS: Record<string, RegExp> = {
   INSTRUCTION_OVERRIDE:

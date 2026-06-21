@@ -1,6 +1,6 @@
 /**
  * Governance Layer — Unified Export Barrel
- * 7-layer deterministic pipeline for IDBI Wealth Companion
+ * 7-layer deterministic pipeline for NorthStar Wealth Companion
  *
  * L0 threatIsolation    — Semantic WAF + injection corpus
  * L1 domainClassifier   — Confidence-scored intent routing

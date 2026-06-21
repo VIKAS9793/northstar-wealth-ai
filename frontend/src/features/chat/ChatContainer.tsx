@@ -87,6 +87,15 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
     );
   }, [messages, storageKey]);
 
+  // Synchronize state when switching profiles
+  useEffect(() => {
+    setMessages(readStoredMessages(storageKey) ?? createInitialMessages(customer, proactiveMessage));
+    // Reset UI state on switch
+    setInput("");
+    setIsLoading(false);
+    setAvatarState('IDLE');
+  }, [storageKey, customer, proactiveMessage]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -153,6 +162,7 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
         message: textToSend,
         customerProfile: customer,
         chatHistory,
+        sessionId: customer.id,
         onMetadata: (intent, wasComplianceBlocked) => {
           setIsLoading(false); // Stop typing indicator as soon as stream starts
           

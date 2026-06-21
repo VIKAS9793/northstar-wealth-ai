@@ -15,6 +15,7 @@ export type IntentType =
   | 'ACCELERATION'
   | 'SUITABILITY_CHECK'
   | 'CLARIFICATION'
+  | 'TAX_PLANNING'
   | 'OFF_TOPIC'
   | 'GENERAL';
 
@@ -36,11 +37,29 @@ export interface ClassificationResult {
 
 // Financial entity vocabulary — presence in message boosts classification confidence
 const FINANCIAL_ENTITIES: string[] = [
-  'sip', 'mutual fund', 'portfolio', 'goal', 'corpus', 'return',
-  'equity', 'debt', 'elss', 'nfo', 'nav', 'aum', 'lumpsum', 'step-up',
-  'rebalance', 'allocation', 'fd', 'ppf', 'nps', 'insurance', 'term plan',
-  'emergency fund', 'home loan', 'emi', 'income', 'salary', 'bonus',
-  'tax', '80c', 'ltcg', 'stcg',
+  // Core Mutual Fund & Regulatory
+  'mutual fund', 'amc', 'amfi', 'sebi', 'nav', 'aum', 'nfo', 'folio', 'kyc', 'ckyc', 'rta', 'cams', 'kfintech', 'ter', 'expense ratio', 'exit load', 'entry load',
+  
+  // Investment Modes
+  'sip', 'swp', 'stp', 'lumpsum', 'step-up', 'top-up', 'systematic investment plan', 'systematic transfer plan', 'systematic withdrawal plan',
+  
+  // Equity Fund Categories (SEBI defined)
+  'large cap', 'mid cap', 'small cap', 'multi cap', 'flexi cap', 'focused fund', 'value fund', 'contra fund', 'dividend yield', 'elss', 'index fund', 'etf', 'fund of funds', 'fof', 'sectoral', 'thematic',
+  
+  // Debt Fund Categories
+  'liquid fund', 'overnight fund', 'ultra short duration', 'low duration', 'money market', 'short duration', 'medium duration', 'long duration', 'dynamic bond', 'corporate bond', 'credit risk', 'banking and psu', 'gilt fund', 'floater fund',
+  
+  // Hybrid & Solution Oriented
+  'conservative hybrid', 'balanced hybrid', 'aggressive hybrid', 'dynamic asset allocation', 'baf', 'multi asset allocation', 'arbitrage', 'equity savings', 'retirement fund', "children's fund",
+  
+  // Performance & Portfolio Metrics
+  'alpha', 'beta', 'standard deviation', 'sharpe ratio', 'sortino ratio', 'treynor ratio', 'tracking error', 'xirr', 'cagr', 'absolute return', 'benchmark', 'tri', 'total return index', 'yield to maturity', 'ytm', 'macaulay duration', 'modified duration',
+  
+  // Tax & Plan Types
+  'ltcg', 'stcg', '80c', 'indexation', 'grandfathering', 'capital gains', 'idcw', 'growth option', 'direct plan', 'regular plan', 'dividend',
+  
+  // General Personal Finance & Other Assets
+  'portfolio', 'goal', 'corpus', 'return', 'equity', 'debt', 'rebalance', 'allocation', 'fd', 'fixed deposit', 'ppf', 'nps', 'insurance', 'term plan', 'emergency fund', 'home loan', 'emi', 'income', 'salary', 'bonus', 'tax', 'epf', 'vpf', 'sukanya samriddhi', 'ssy', 'sovereign gold bond', 'sgb', 'nsc',
 ];
 
 // Maximum confidence boost from financial entity presence
@@ -58,6 +77,16 @@ interface PatternRule {
 }
 
 const CLASSIFICATION_RULES: PatternRule[] = [
+  // TAX_PLANNING — personalised tax calculation / ITR / advisory (HIGHEST PRIORITY)
+  // Must be first rule: orchestrator short-circuits to RM escalation on this intent
+  // without invoking the LLM. Pattern mirrors isTaxPlanningQuery() in taxRules.ts.
+  // If you update the pattern here, update taxRules.ts#isTaxPlanningQuery in the same commit.
+  {
+    pattern: /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving strateg|tax plan|plan my tax|my tax|tax on my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax (will|do|should) i|what tax (will|do|should) i|exact tax|tax liabilit|tax outgo|tax position|tax on my portfolio|tax on my sip|tax on my mutual|declare.*itr|what to declare)\b/i,
+    intent: 'TAX_PLANNING',
+    bias: 'NONE',
+    baseConfidence: 0.97,
+  },
   // RESILIENCE — panic/fear/withdrawal signals
   {
     pattern: /crash|stop sip|stop my sip|pause sip|panic|withdraw|redeem|scared|worried|market (gir|fell|down|bad|crash)|bechna|nikalna|all time low|correction/i,
@@ -109,7 +138,18 @@ const CLASSIFICATION_RULES: PatternRule[] = [
   },
   // OFF TOPIC — confirmed out-of-domain
   {
-    pattern: /\b(cricket (match|score|team)|bollywood|recipe|cook|weather|today'?s news|politics|vote|political)\b|\b(write|create|generate|debug|solve).*?(python|javascript|code|script|app|homework|math)\b/i,
+    // Clause A: Clear non-financial lifestyle/entertainment domains
+    // Clause B: Tech action verb + tech keyword (covers write/debug/solve patterns)
+    // Clause C: Standalone tech-stack keywords with no financial interpretation
+    //   INCLUDED:  python, javascript, typescript, programming, coding,
+    //              software development, web development, html, css
+    //   EXCLUDED:  machine learning, AI, data science, deep learning
+    //   Reason: "how does your AI work?" and "what ML model does Dhan use?" are
+    //   product-relevant queries that must reach the LLM, not trigger a refusal.
+    //   Blocking them standalone is a demo-killing false positive.
+    // Clause D: learn/teach/tutorial + tech — catches "learn python" without an
+    //   action verb, which the original 2-clause pattern missed entirely
+    pattern: /\b(cricket( (match|score|team))?|bollywood|recipe|cook(ing)?|weather( (today|tomorrow|forecast))?|today'?s news|politics|vote|political( party)?)\b|\b(write|create|generate|debug|solve|build|compile|run)[\w\s]{0,20}(python|javascript|typescript|code|script|program|algorithm|software)\b|\b(python|javascript|typescript|programming|coding|software development|web development|html|css)\b|\b(learn|teach|help with|tutorial for|resources for|course on|guide to)[\w\s]{0,15}(python|javascript|typescript|programming|coding|software|scripting)\b/i,
     intent: 'OFF_TOPIC',
     bias: 'NONE',
     baseConfidence: 0.97,
@@ -136,6 +176,23 @@ export function classifyWithConfidence(message: string): ClassificationResult {
 
       // Entity-Override mechanism for Out-of-Domain queries
       if (rule.intent === 'OFF_TOPIC' && entities.length > 0) {
+        // Tech-stack queries stay OFF_TOPIC even when they mention a finance term.
+        // "python for portfolio management" is a tech request, not a financial planning
+        // request — the finance word doesn't change its domain.
+        // SEBI IA Reg 2(1)(l): investment advice means advice relating to investing,
+        // not providing technology education because a user mentioned a portfolio.
+        const isTechQuery = /\b(python|javascript|typescript|programming|coding|software|web development|html|css|scripting)\b/i.test(message);
+        if (isTechQuery) {
+          return {
+            intent: 'OFF_TOPIC',
+            bias: 'NONE',
+            confidence: 0.94,
+            financialEntities: entities,
+            requiresProbing: false,
+          };
+        }
+        // Non-tech off-topic with financial entities: downgrade to CLARIFICATION.
+        // e.g. "cricket match bet on IPL teams" — has sports + possible financial angle.
         return {
           intent: 'CLARIFICATION',
           bias: 'NONE',

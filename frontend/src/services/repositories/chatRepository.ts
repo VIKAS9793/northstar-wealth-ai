@@ -33,7 +33,7 @@ interface ChatSseEvent {
  */
 export async function sendChatMessage(payload: ChatRequestPayload, retries = 1): Promise<Result<void>> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000); // 30s mobile-safe timeout
+  const timeout = setTimeout(() => controller.abort('Request timed out after 60 seconds'), 60_000); // 60s timeout for complex generations
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -88,10 +88,10 @@ export async function sendChatMessage(payload: ChatRequestPayload, retries = 1):
   } catch (error) {
     clearTimeout(timeout);
     const isNetworkError = error instanceof TypeError; // fetch network failure
-    const wasAborted = error instanceof Error && error.name === 'AbortError';
+    const wasAborted = error instanceof Error && error.name === 'AbortError' || (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError');
     
-    if (isNetworkError && retries > 0 && !wasAborted) {
-      // Wait 1.5s then retry once — covers transient mobile handoff errors
+    if ((isNetworkError || wasAborted) && retries > 0) {
+      // Wait 1.5s then retry once — covers transient mobile handoff errors and Next.js dev server stalls
       await new Promise(r => setTimeout(r, 1500));
       return sendChatMessage(payload, retries - 1);
     }
