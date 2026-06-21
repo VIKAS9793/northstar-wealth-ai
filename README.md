@@ -97,6 +97,9 @@ The solution is designed as a Proof of Concept for the IDBI Innovate 2026 Wealth
 
 to create a continuously evolving Financial Twin and personalized guidance experience.
 
+> [!IMPORTANT]
+> **For detailed enterprise integration, DPDP Act compliance, and our strategy for scaling this to millions of IDBI users using Core Banking Systems, please read the [PRODUCTION SCALING ARCHITECTURE](docs/PRODUCTION_SCALING_ARCHITECTURE.md) document.**
+
 ---
 
 ## Architecture Philosophy
