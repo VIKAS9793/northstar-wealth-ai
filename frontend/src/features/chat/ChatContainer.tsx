@@ -166,7 +166,7 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
         onMetadata: (intent, wasComplianceBlocked) => {
           setIsLoading(false); // Stop typing indicator as soon as stream starts
           
-          if (wasComplianceBlocked) {
+          if (wasComplianceBlocked || intent === 'TAX_PLANNING') {
             playSound('alert');
             dispatchAvatarEvent('COMPLIANCE_TRIGGER');
           } else if (intent === 'RESILIENCE') {

@@ -20,7 +20,7 @@ describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
     };
 
     // Excess property check bypass: TS only checks literal objects; variable references are fine.
-    const cls = { intent: 'GENERAL', bias: 'NONE' };
+    const cls = { intent: 'GOAL_PLANNING', bias: 'NONE' };
     const result = runGoalIntelligenceEngine(mockProfile, cls);
     expect(result).toContain("gap and recommend debt consolidation");
     expect(result).toContain("free cash flow is ₹500");
@@ -44,7 +44,7 @@ describe('Mathematical Limits (Goal Engine Edge Cases)', () => {
     };
 
     // Excess property check bypass: TS only checks literal objects; variable references are fine.
-    const cls = { intent: 'GENERAL', bias: 'NONE' };
+    const cls = { intent: 'GOAL_PLANNING', bias: 'NONE' };
     const result = runGoalIntelligenceEngine(mockProfile, cls);
     expect(result).not.toContain("gap and recommend debt consolidation");
     expect(result).toContain("Priority goal is 'Car'");

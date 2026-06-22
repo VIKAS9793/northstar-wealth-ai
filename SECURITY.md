@@ -265,11 +265,12 @@ npm test
 
 | Test Suite | Tests | Security Coverage |
 |---|---|---|
+| `governance_extended.test.ts` | 90 | Extended L0 scenarios, extreme twin boundaries, L4 priority tests, L6 evasion matrix, L7 audit |
 | `governance.test.ts` | 42 | L0 threat blocking, L1 OOD rejection, L2 preflight hard stops, L6 prohibited term detection |
 | `constitution.test.ts` | 16 | L3 constitutional principle enforcement, JSON parse failure safety |
 | `orchestrator.test.ts` | 3 | End-to-end suitability hard rejection, off-topic routing |
 
-All 68 tests must pass before any commit reaches `main`.
+All 158 tests must pass before any commit reaches `main`.
 
 ---
 

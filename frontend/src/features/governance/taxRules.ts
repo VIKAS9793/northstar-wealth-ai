@@ -147,44 +147,57 @@ export const STT_NOTE = 'STT is automatically deducted by the AMC on equity fund
  * the constant values above in the SAME commit. Do not update one without the other.
  */
 export const TAX_RULES_SYSTEM_BLOCK = `
-INDIAN MUTUAL FUND TAX RULES — DETERMINISTIC REFERENCE (Finance (No.2) Act 2024, effective 23 Jul 2024)
+INDIAN MUTUAL FUND TAX — STATUTORY RATE REFERENCE
+Source: Finance (No.2) Act 2024, effective 23 July 2024 (FY 2025-26 / AY 2026-27)
 
-[COMPLIANCE MANDATE - SEMANTIC FIREWALL]
-If the user asks you to calculate their specific tax liability, plan their taxes, optimize their gains, or asks for personalised tax advice (e.g. "how much tax will I pay", "tax bachana hai", "tax on 50 lakhs"), YOU MUST REFUSE.
-You MUST reply EXACTLY with this phrase and NOTHING ELSE:
-"Tax calculations, ITR filing, and personalised tax planning require a qualified Chartered Accountant and cannot be handled by an AI advisor under SEBI guidelines. Shall I connect you to your Relationship Manager? Here are their details; they will guide you on your detailed tax related queries. rm@northstarwealth.com | +91 800 555 0199"
-Do not apologize, do not provide general guidance, and do not offer tax calculations.
+SCOPE BOUNDARY — READ FIRST:
+You may ONLY provide the statutory rates listed below.
+You MUST NOT:
+- Calculate any customer's specific tax amount or liability
+- Apply these rates to the customer's portfolio, SIP, or redemption values
+- Compare tax efficiency between funds or strategies
+- Suggest when to redeem, book profits, or harvest losses for tax purposes
+- Advise on ITR filing, advance tax, or any other tax compliance action
+- Make any statement that connects these rates to the customer's personal situation
 
-For general informational queries (e.g., "What is the LTCG rate?"), you MUST use these exact, verified tax rules. Never guess or invent any rate:
+If the customer asks you to apply these rates to their situation in any way,
+respond only with:
+"For your specific tax situation, I recommend consulting a qualified Chartered
+Accountant or tax advisor. I can only share the applicable statutory rates —
+not how they apply to your individual portfolio."
 
-EQUITY-ORIENTED FUNDS (≥ 65% domestic equity — includes ELSS, Aggressive Hybrid, Arbitrage):
-• Holding ≤ 12 months → STCG taxed at 20% (flat, regardless of income tax slab)
-• Holding > 12 months → LTCG taxed at 12.5% on gains exceeding ₹1.25 lakh per financial year
-• ELSS: 3-year lock-in ensures all redemptions qualify as LTCG at 12.5% (above ₹1.25L)
-• ELSS 80C deduction: Up to ₹1.5 lakh per FY under OLD tax regime only
-• Grandfathering: For units bought on or before 31 Jan 2018, the cost of acquisition is the higher of the actual purchase price or the NAV on 31 Jan 2018
+STATUTORY RATES (verbatim, do not modify):
 
-DEBT / SPECIFIED MUTUAL FUNDS (≤ 35% domestic equity — Section 50AA):
-• For units acquired ON OR AFTER 1 April 2023: ALL gains are taxed at your applicable income tax slab rate — regardless of holding period. No STCG/LTCG distinction. No indexation.
-• This covers: All debt funds, liquid funds, money market, gilt, credit risk, corporate bond, overnight, floater, Gold FOF, International FOF, Conservative Hybrid
+EQUITY-ORIENTED FUNDS (≥ 65% domestic equity):
+• Short-term (held ≤ 12 months): 20% flat (Section 111A)
+• Long-term (held > 12 months): 12.5% on gains above ₹1.25 lakh per FY (Section 112A)
+• ELSS: 3-year lock-in. All redemptions qualify as long-term. Same 12.5% rate applies.
+• 80C deduction: Up to ₹1.5 lakh per FY under Old Tax Regime only.
+
+DEBT/SPECIFIED FUNDS (≤ 35% domestic equity — Section 50AA):
+• For units purchased on or after 1 April 2023: All gains taxed at income tax slab rate.
+  No distinction between short-term and long-term. No indexation benefit.
+• Covers: All debt funds, liquid, overnight, money market, gilt, credit risk,
+  Gold FOF, International FOF, Conservative Hybrid.
 
 GOLD ETFs (listed):
-• Holding ≤ 12 months → Slab rate
-• Holding > 12 months → LTCG at 12.5%, no indexation
+• Held ≤ 12 months: Slab rate
+• Held > 12 months: 12.5%, no indexation
 
 HYBRID FUNDS:
-• Aggressive Hybrid (65–80% equity): Equity rules apply
-• Conservative Hybrid (< 25% equity): Debt/Slab rules apply
-• Balanced Hybrid & BAF: Depends on actual equity exposure at redemption — inform customer to check the fund's equity allocation
+• ≥ 65% equity: Equity rules apply
+• ≤ 35% equity: Debt/slab rules apply
+• 35-65% equity: Customer must check the fund's actual equity allocation
 
-NPS ADDITIONAL BENEFIT:
-• Extra ₹50,000 deduction under Section 80CCD(1B) — this is OVER AND ABOVE the ₹1.5L limit of 80C
-• 60% of NPS corpus at retirement is tax-free; 40% must be used for annuity (taxable)
+NPS ADDITIONAL DEDUCTION:
+• Section 80CCD(1B): Extra ₹50,000 over and above the ₹1.5L of Section 80C
+• At maturity: 60% corpus tax-free; 40% must be used for annuity (taxable as income)
 
-MANDATORY DISCLAIMER: Always end any tax-related response with:
-"These are the current rules as per Finance (No.2) Act 2024 (effective 23 Jul 2024). Tax laws may change. For your specific tax computation, gains calculation, or ITR filing, please consult a qualified Chartered Accountant or tax advisor."
-
-HARD PROHIBITION: Do NOT calculate the customer's exact tax amount, do NOT file taxes, do NOT recommend tax-evasion strategies. Only explain the rules.
+MANDATORY CLOSING DISCLAIMER:
+Always end any tax-related response with this exact sentence:
+"These rates are as per Finance (No.2) Act 2024. Tax laws can change. For your
+specific tax computation or ITR filing, please consult a qualified Chartered
+Accountant or tax advisor."
 `.trim();
 
 /**
@@ -195,9 +208,11 @@ HARD PROHIBITION: Do NOT calculate the customer's exact tax amount, do NOT file 
  * The RM details here must match the HUMAN_ESCALATION block in orchestrator.ts.
  */
 export const TAX_ESCALATION_RESPONSE =
-  "Tax calculations, ITR filing, and personalised tax planning require a qualified Chartered Accountant and cannot be handled by an AI advisor under SEBI guidelines. " +
-  "Shall I connect you to your Relationship Manager? Here are their details; they will guide you on your detailed tax related queries. " +
-  "rm@northstarwealth.com | +91 800 555 0199";
+  "Tax calculations, ITR filing, and personalised tax planning fall under the " +
+  "domain of a qualified Chartered Accountant. Under SEBI IA guidelines, " +
+  "Dhan cannot provide personalised tax advice or compute your specific tax liability. " +
+  "Please contact your IDBI Relationship Manager or reach IDBI Bank Customer Care " +
+  "at 1800-200-1947 (toll free) for detailed guidance on your tax situation.";
 
 /**
  * Returns true if the query requires PERSONALISED tax advice, calculation, or planning.
@@ -210,7 +225,12 @@ export const TAX_ESCALATION_RESPONSE =
  * - "My tax", "my gains", "my portfolio tax" = personalised = RM only
  */
 export function isTaxPlanningQuery(message: string): boolean {
-  return /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving|tax plan|plan.*tax|my tax|tax.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax|what tax|exact tax|tax liabilit|tax outgo|tax position|declare.*itr|what to declare|pay to govt|pay to government|tax bachana|tax bacha|tax kam|pay less tax|reduce tax|tax implication|tax calculation|tax impact|tax exposure|deduction.*my)/i.test(message);
+  // Tech-domain queries must never route to tax planning escalation.
+  // "Write me a python script to calculate my returns" is a tech request.
+  const isTechDomain = /\b(python|javascript|typescript|code|script|program|software|coding|write a|build a|create a|debug|compile)\b/i.test(message);
+  if (isTechDomain) return false;
+
+  return /\b(calculat|comput|minimis|minimiz|optimis|optimiz|tax harvest|save tax|tax saving|tax plan|plan.*tax|my tax|tax.*my|my gain.*tax|tax.*my gain|itr|income tax return|file.*return|return.*filing|advance tax|form 16|ais statement|tax audit|ca advice|chartered accountant|tax consultant|tax advisor|how much tax|exact tax|tax liabilit|tax outgo|tax position|declare.*itr|what to declare|pay to govt|pay to government|tax bachana|tax bacha|tax kam|pay less tax|reduce tax|tax implication|tax calculation|tax impact|tax exposure|deduction.*my)/i.test(message);
 }
 
 /**
@@ -219,6 +239,12 @@ export function isTaxPlanningQuery(message: string): boolean {
  * e.g. "What is LTCG rate?" / "Is ELSS tax free?" / "What is 80C limit?"
  */
 export function isTaxQuery(message: string): boolean {
-  if (isTaxPlanningQuery(message)) return false; // Planning queries go to RM, not AI
-  return /\b(tax|ltcg|stcg|capital gain|80c|elss tax|indexation|slab rate|grandfathering|tax benefit|after.?tax|tax.?free|exempt|section 112a|section 50aa|deduction|tax.?rate|dividend tax|idcw tax|tax on sip|tax on mutual|tax on fund|what is.*tax|how.*taxed|tax rules|finance act)\b/i.test(message);
+  if (isTaxPlanningQuery(message)) return false;
+
+  // Personalised application queries — belong to isTaxPlanningQuery territory
+  // "tax on my SIP" implies personal computation, not rate information
+  const isPersonalisedApplication = /\bmy (sip|fund|portfolio|redemption|folio|investment|mutual fund|elss|gains|returns|profit)\b/i.test(message);
+  if (isPersonalisedApplication) return false;
+
+  return /\b(tax|ltcg|stcg|capital gain|80c|elss tax|indexation|slab rate|grandfathering|tax benefit|after.?tax|tax.?free|exempt|section 112a|section 50aa|deduction|tax.?rate|dividend tax|idcw tax|what is.*tax|how.*taxed|tax rules|finance act|80ccd|nps tax|ppf tax|gold etf tax|debt fund tax|equity fund tax)\b/i.test(message);
 }

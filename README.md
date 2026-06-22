@@ -132,10 +132,11 @@ This design allows the system to remain model-agnostic. Currently, the orchestra
 
 ## Testing Architecture & Quality Assurance
 
-The governance pipeline is validated by an enterprise-grade test suite using **Vitest**. All 68 tests across 5 suites pass.
+The governance pipeline is validated by an enterprise-grade test suite using **Vitest**. All 158 tests across 6 suites pass.
 
 | Suite | Tests | What It Covers |
 |---|---|---|
+| `governance_extended.test.ts` | 90 | L1 extended classifications, L2 bounds checking, L4 complex multi-engine suppression rules, L6 regex edge cases, L7 audit session stats |
 | `governance.test.ts` | 42 | L0 threat detection, L1 confidence classification, L2 preflight rules, L4 engine conflict resolution, L6 compliance filter |
 | `constitution.test.ts` | 16 | L3 constitutional principle coverage, `requiresConstitutionalReview` gating logic, JSON parse failure fallback |
 | `orchestrator.test.ts` | 3 | Full pipeline integration: suitability hard-rejection, off-topic routing, RM escalation |

@@ -172,6 +172,13 @@ export function classifyWithConfidence(message: string): ClassificationResult {
 
   for (const rule of CLASSIFICATION_RULES) {
     if (rule.pattern.test(message)) {
+      // Guard: TAX_PLANNING rule must never fire on tech-domain queries.
+      // "Write me a python script to calculate LTCG" is a tech request.
+      // Allow it to fall through to the OFF_TOPIC rule instead.
+      if (rule.intent === 'TAX_PLANNING') {
+        const isTechDomainQuery = /\b(python|javascript|typescript|code|script|program|software|coding|write a|build a|create a|debug|compile|html|css|sql query)\b/i.test(message);
+        if (isTechDomainQuery) continue;
+      }
       const confidence = Math.min(rule.baseConfidence + entityBoost, 0.99);
 
       // Entity-Override mechanism for Out-of-Domain queries

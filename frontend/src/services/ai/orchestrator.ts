@@ -404,8 +404,8 @@ HUMAN ESCALATION:
 If the user requests to speak to a human, agent, or support staff:
 1. Explain politely that you are an AI assistant.
 2. Provide the following official support details:
-   - Email: rm@northstarwealth.com
-   - Hotline: +91 800 555 0199
+   - Email: customercare@idbibank.com
+   - Hotline: 1800-209-4324
    - Suggest contacting their dedicated Relationship Manager for personalized complex wealth advice.
 
 DOMAIN HARD BOUNDARY:
@@ -518,6 +518,16 @@ ${STRUCTURED_OUTPUT_SYSTEM_SUFFIX}`;
     confidenceScore: classification.confidence,
   });
 
+  // COMPLIANCE NOTE — ACCEPTED TECHNICAL DEBT:
+  // validateOutputCompliance() is not applied to the streaming token buffer.
+  // In the current architecture, output compliance is enforced through:
+  //   (a) The DOMAIN HARD BOUNDARY and SEBI GOVERNANCE clauses in the system prompt
+  //   (b) The Constitutional AI critique (L3) which runs pre-stream on ~40% of queries
+  //   (c) The isTaxPlanningQuery gate which intercepts high-risk queries before LLM
+  // Full post-generation compliance scanning on the stream buffer is a
+  // POST-SHORTLIST milestone (requires buffering the complete response before
+  // first token delivery — adds ~200ms to TTFB, acceptable at production scale,
+  // not prioritised for prototype streaming).
   return {
     success: true as const,
     data: simulateStream(outputText),

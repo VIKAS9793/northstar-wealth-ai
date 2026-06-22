@@ -4,6 +4,10 @@
 ![Scale](https://img.shields.io/badge/Scale-10M%2B_Users-success)
 ![Compliance](https://img.shields.io/badge/Compliance-DPDP_Act_%7C_SEBI-critical)
 
+> [!WARNING]
+> **Projections Disclaimer**
+> The scaling architectures and CCU projections detailed in this document are forward-looking models based on IDBI's current CBS footprint. They do not represent deployed, live-tested enterprise capacity.
+
 > [!NOTE]
 > **Executive Summary**
 > The NorthStar Wealth Companion is designed not as a monolithic disruption, but as an **agile, decoupled intelligence layer**. It sits on top of IDBI's existing Core Banking System (CBS) and Mutual Fund execution infrastructure. This document outlines how we scale the current Proof of Concept (PoC) to millions of retail banking users with zero disruption to legacy infrastructure, minimal latency, and strict enterprise compliance.
