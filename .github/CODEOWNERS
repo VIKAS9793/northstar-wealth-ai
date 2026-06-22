@@ -1,0 +1,12 @@
+# Global Default
+* @VIKAS9793
+
+# Critical Governance & Compliance Pathways
+# Require explicit approval from the Principal Engineer
+frontend/src/features/governance/* @VIKAS9793
+SECURITY.md @VIKAS9793
+.github/workflows/* @VIKAS9793
+
+# CI/CD and Configuration
+package.json @VIKAS9793
+frontend/package.json @VIKAS9793
