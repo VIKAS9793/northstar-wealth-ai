@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     // MOD-3: Extract or generate sessionId for audit trail correlation
     const sessionId =
       req.headers.get('x-session-id') ??
-      `session-${Date.now()}-${crypto.randomUUID()}`;
+      `session-${Date.now()}-${Math.random().toString(36).slice(2, 15)}`;
 
     const result = await generateAIResponse(
       message,
