@@ -14,7 +14,7 @@
  * No LLM call.
  */
 
-// Removed crypto import for Edge runtime compatibility
+import { createHash } from 'crypto';
 import { ThreatAssessment } from './threatIsolation';
 import { ClassificationResult } from './domainClassifier';
 
@@ -84,25 +84,17 @@ function redactPII(text: string): string {
   return redacted;
 }
 
-// Helper for Edge-compatible SHA-256 hashing
-async function hashSha256(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 /**
  * Creates and stores an immutable, DPDP-compliant audit entry for a single interaction.
  * Internally calls `redactPII()` and hashes the customer identity to ensure data minimization.
  * Fire-and-forget safe — does not throw. Returns the created entry.
  */
-export async function createAuditEntry(
+export function createAuditEntry(
   data: Omit<AuditEntry, 'auditId' | 'timestamp'>
-): Promise<AuditEntry> {
+): AuditEntry {
   const entry: AuditEntry = {
     ...data,
-    customerId: await hashSha256(data.customerId), // DPDP Cryptographic pseudonymization
+    customerId: createHash('sha256').update(data.customerId).digest('hex'), // DPDP Cryptographic pseudonymization
     rawInput: redactPII(data.rawInput), // DPDP PII Masking
     auditId: generateId(),
     timestamp: new Date().toISOString(),
@@ -111,7 +103,7 @@ export async function createAuditEntry(
   // Cryptographically store consent if liability was accepted
   if (entry.clientOverrideAcknowledged && entry.rawInput.trim() === '[SYSTEM_INTENT: OVERRIDE_CONSENT_GRANTED]') {
     const payloadToHash = `${entry.sessionId}:${entry.customerId}:${entry.timestamp}:${entry.networkContext.ipAddress}:${entry.networkContext.userAgent}:${entry.rawInput}`;
-    entry.consentHash = await hashSha256(payloadToHash);
+    entry.consentHash = createHash('sha256').update(payloadToHash).digest('hex');
   }
 
   const existing = auditStore.get(data.sessionId) ?? [];

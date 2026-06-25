@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateAIResponse, OrchestratorPayload } from '@/services/ai/orchestrator';
 
-export const maxDuration = 60; // Prevent 10s serverless timeouts on Netlify/Vercel
-export const runtime = 'edge'; // Deploy to Edge Runtime to completely bypass wall-clock timeouts
-
 /**
  * API Route: /api/chat
  *
@@ -32,9 +29,8 @@ export async function POST(req: Request) {
     }
 
     // SECURITY: Origin Validation
-    const origin = req.headers.get('origin') || req.headers.get('referer') || '';
-    const isAllowed = origin.includes('localhost') || origin.includes('netlify.app') || (process.env.ALLOWED_ORIGIN && origin.includes(process.env.ALLOWED_ORIGIN));
-    if (process.env.NODE_ENV === 'production' && origin && !isAllowed) {
+    const origin = req.headers.get('origin') || req.headers.get('referer');
+    if (process.env.NODE_ENV === 'production' && origin && !origin.includes(process.env.ALLOWED_ORIGIN || 'localhost')) {
       return NextResponse.json({ error: 'Forbidden Origin' }, { status: 403 });
     }
 
@@ -51,50 +47,48 @@ export async function POST(req: Request) {
     // MOD-3: Extract or generate sessionId for audit trail correlation
     const sessionId =
       req.headers.get('x-session-id') ??
-      `session-${Date.now()}-${Math.random().toString(36).slice(2, 15)}`;
+      `session-${Date.now()}-${crypto.randomUUID()}`;
+
+    const result = await generateAIResponse(
+      message,
+      customerProfile,
+      chatHistory ?? [],
+      sessionId,
+      clientIp,
+      userAgent
+    ) as OrchestratorPayload;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        // Start keepalive instantly to bypass Netlify 10s Inactivity Timeout
         const keepalive = setInterval(() => {
           controller.enqueue(encoder.encode(': keepalive\n\n'));
         }, 8000);
 
-        try {
-          // Block inside the stream context so the HTTP response headers are already sent
-          const result = await generateAIResponse(
-            message,
-            customerProfile,
-            chatHistory ?? [],
-            sessionId,
-            clientIp,
-            userAgent
-          ) as OrchestratorPayload;
+        // Send metadata as the first chunk — includes auditId for L7 correlation
+        const metadata = {
+          type: 'metadata',
+          intent: result.intent,
+          wasComplianceBlocked: result.wasComplianceBlocked,
+          auditId: (result as { auditId?: string }).auditId,
+          requiresExplicitConsent: result.requiresExplicitConsent,
+          error: result.success ? undefined : result.error
+        };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));
 
-          // Send metadata as the first chunk — includes auditId for L7 correlation
-          const metadata = {
-            type: 'metadata',
-            intent: result.intent,
-            wasComplianceBlocked: result.wasComplianceBlocked,
-            auditId: (result as { auditId?: string }).auditId,
-            requiresExplicitConsent: result.requiresExplicitConsent,
-            error: result.success ? undefined : result.error
-          };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));
-
-          // If it was intercepted by a fast-path string return (Governance/Cache/Error)
-          if (!result.success || typeof result.data === 'string' || !result.data) {
-            const text = result.success ? result.data : (result.error || "Error");
-            if (text) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', text })}\n\n`));
-            }
-            clearInterval(keepalive);
-            controller.close();
-            return;
+        // If it was intercepted by a fast-path string return (Governance/Cache/Error)
+        if (!result.success || typeof result.data === 'string' || !result.data) {
+          const text = result.success ? result.data : (result.error || "Error");
+          if (text) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', text })}\n\n`));
           }
+          clearInterval(keepalive);
+          controller.close();
+          return;
+        }
 
-          // Iterate over the OpenAI stream
+        // Iterate over the OpenAI stream
+        try {
           for await (const chunk of result.data) {
             const content = chunk.choices[0]?.delta?.content || "";
             if (content) {
