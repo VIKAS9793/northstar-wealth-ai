@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { generateAIResponse, OrchestratorPayload } from '@/services/ai/orchestrator';
 
+export const maxDuration = 60; // Prevent 10s serverless timeouts on Netlify/Vercel
+
 /**
  * API Route: /api/chat
  *
@@ -29,8 +31,9 @@ export async function POST(req: Request) {
     }
 
     // SECURITY: Origin Validation
-    const origin = req.headers.get('origin') || req.headers.get('referer');
-    if (process.env.NODE_ENV === 'production' && origin && !origin.includes(process.env.ALLOWED_ORIGIN || 'localhost')) {
+    const origin = req.headers.get('origin') || req.headers.get('referer') || '';
+    const isAllowed = origin.includes('localhost') || origin.includes('netlify.app') || (process.env.ALLOWED_ORIGIN && origin.includes(process.env.ALLOWED_ORIGIN));
+    if (process.env.NODE_ENV === 'production' && origin && !isAllowed) {
       return NextResponse.json({ error: 'Forbidden Origin' }, { status: 403 });
     }
 
