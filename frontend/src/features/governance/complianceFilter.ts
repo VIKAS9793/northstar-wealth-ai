@@ -1,6 +1,5 @@
 /**
  * @layer L6 — Post-Generation Compliance Filter
- * [Last Updated: 2026-06-24T18:41:02+05:30]
  * @description Intent-aware compliance check and SEBI disclosure injection.
  * Upgrades the 2-pattern regex with 10 prohibited term patterns, a whitelist
  * for protective phrasing, and mandatory disclosure templates per intent type.

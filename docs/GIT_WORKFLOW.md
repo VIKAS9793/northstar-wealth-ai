@@ -1,6 +1,4 @@
-# Git Workflow
-
-*Document last updated: 2026-06-24*
+# Enterprise Banking Production-Grade Git Workflow
 
 This document outlines the strict version control, branch management, and CI/CD procedures for the IDBI Wealth Companion project. All engineers must adhere to these policies.
 
@@ -8,12 +6,12 @@ This document outlines the strict version control, branch management, and CI/CD 
 
 Our branching model is a hardened hybrid of Trunk-Based Development and GitFlow.
 
-- **`main`**: The primary branch. Code here must ALWAYS be deployable and pass all 270+ governance and compliance tests. Direct pushes are blocked by branch protection.
+- **`main`**: The immutable production branch. Code here must ALWAYS be deployable and pass all 158+ governance and compliance tests. Direct pushes are blocked by branch protection.
 - **`develop`**: The primary integration branch. All features and bug fixes target this branch first.
 - **`release/vX.X.X`**: Cut from `develop` for final UAT testing before merging into `main`. Only bugfixes are allowed here.
 - **`feature/<issue-id>-<short-desc>`**: Temporary branches for new development. Must branch off `develop`.
 - **`bugfix/<issue-id>-<short-desc>`**: For fixing non-critical bugs.
-- **`hotfix/<issue-id>-<short-desc>`**: For emergency fixes. Branches off `main` and merges back into both `main` and `develop`.
+- **`hotfix/<issue-id>-<short-desc>`**: For emergency production fixes. Branches off `main` and merges back into both `main` and `develop`.
 - **`sec/<issue-id>-<short-desc>`**: Reserved for security patches.
 
 ## 2. Commit Standards (Husky & Commitlint)
@@ -38,7 +36,7 @@ Local commits will fail if the message does not follow the format: `<type>(<scop
 
 Before a commit is created, Husky will execute:
 1. `npm run lint` (ESLint analysis)
-2. `npm run test` (Vitest - all 270 tests must pass)
+2. `npm run test` (Vitest - all 158 tests must pass)
 
 If any test fails, the commit is aborted. This ensures broken code never reaches the remote repository.
 

@@ -15,18 +15,14 @@
  * FY APPLICABILITY: 2025-26 (AY 2026-27) — rules effective from 23 July 2024.
  */
 
-/* ==========================================================================
-   HOLDING PERIODS
-   ========================================================================== */
+// ── HOLDING PERIODS ───────────────────────────────────────────────────────────
 
 export const HOLDING_PERIODS = {
   EQUITY_LT_MONTHS: 12,   // > 12 months = Long-Term for equity-oriented funds
   DEBT_LT_MONTHS: 24,     // > 24 months = Long-Term for non-equity, non-specified funds
 } as const;
 
-/* ==========================================================================
-   LTCG / STCG RATES
-   ========================================================================== */
+// ── LTCG / STCG RATES ─────────────────────────────────────────────────────────
 
 /**
  * Equity-Oriented Funds
@@ -140,9 +136,7 @@ export const PPF_TAX = {
  */
 export const STT_NOTE = 'STT is automatically deducted by the AMC on equity fund redemptions. Investors do not pay STT separately.';
 
-/* ==========================================================================
-   SYSTEM PROMPT BLOCK (deterministic, verbatim for LLM injection)
-   ========================================================================== */
+// ── SYSTEM PROMPT BLOCK (deterministic, verbatim for LLM injection) ────────────
 
 /**
  * Plain-text block injected into the AI system prompt when the query is tax-related.

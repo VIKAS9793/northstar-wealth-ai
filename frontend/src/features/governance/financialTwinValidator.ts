@@ -1,12 +1,7 @@
 /**
  * @layer L2 — Financial Twin Validation
- * [Last Updated: 2026-06-24T18:41:02+05:30]
  * @description Pre-flight suitability and profile checks that fire BEFORE the LLM.
  * Five deterministic rules prevent unsuitable guidance from reaching the model.
- * Integrates 2-Strike Deferral & Persistent Consent Logic via `sessionState` injection:
- * - 1st Strike: Deferral without UI widget.
- * - 2nd Strike: UI widget presented for explicit liability acceptance.
- * - Persistent: Once granted, consent persists across session interactions.
  * No LLM call. Pure Financial Twin mathematics.
  */
 
@@ -24,29 +19,17 @@ export interface TwinValidationResult {
   preflightBlocks: PreflightBlock[];
   enrichedContext: string;
   requiresEscalation: boolean;
-  clientOverrideAcknowledged: boolean;
-  requiresExplicitConsent: boolean;
 }
 
 /**
  * Validates the Financial Twin profile and classification before any LLM call.
- * Returns preflight blocks, explicit consent flags, and an enriched context string for directive injection.
- * 
- * @param profile The customer's Financial Twin profile.
- * @param classification The AI domain classification result.
- * @param rawInput The raw user input, used to detect system override tokens.
- * @param sessionState The persistent session state tracking prior deferrals and consent.
+ * Returns preflight blocks and an enriched context string for directive injection.
  */
 export function validateFinancialTwin(
   profile: FinancialTwinProfile,
-  classification: ClassificationResult,
-  rawInput: string = '',
-  sessionState?: { hasBeenDeferred: boolean; hasConsented: boolean }
+  classification: ClassificationResult
 ): TwinValidationResult {
   const preflightBlocks: PreflightBlock[] = [];
-  let requiresExplicitConsent = false;
-  
-  const isConsentAcknowledged = rawInput.trim() === '[SYSTEM_INTENT: OVERRIDE_CONSENT_GRANTED]';
 
   const freeCashFlow =
     profile.telemetry.monthly_inflow -
@@ -58,9 +41,7 @@ export function validateFinancialTwin(
       ? (profile.telemetry.total_emis / profile.telemetry.monthly_inflow) * 100
       : 0;
 
-  /**
-   * Rule 1: Zero or Negative Free Cash Flow + Investment Intent
-   */
+  // ── Rule 1: Zero or Negative Free Cash Flow + Investment Intent ────────────
   if (
     freeCashFlow <= 0 &&
     ['GOAL_PLANNING', 'ACCELERATION'].includes(classification.intent)
@@ -77,9 +58,7 @@ export function validateFinancialTwin(
     console.warn('[L2-TWIN] HARD_STOP | rule: FCF_ZERO_INVESTMENT_BLOCK | FCF: ₹' + freeCashFlow);
   }
 
-  /**
-   * Rule 2: Low Emergency Fund + Non-Resilience Intent
-   */
+  // ── Rule 2: Low Emergency Fund + Non-Resilience Intent ────────────────────
   if (profile.emergency_fund_months < 3 && classification.intent !== 'RESILIENCE') {
     preflightBlocks.push({
       rule: 'EMERGENCY_FUND_PREFLIGHT',
@@ -94,55 +73,25 @@ export function validateFinancialTwin(
     console.warn(`[L2-TWIN] SOFT_WARN | rule: EMERGENCY_FUND_PREFLIGHT | months: ${profile.emergency_fund_months}`);
   }
 
-  /**
-   * Rule 3: Conservative Profile + High-Risk Suitability Request
-   */
+  // ── Rule 3: Conservative Profile + High-Risk Suitability Request ──────────
   if (
     profile.risk_profile === 'Conservative' &&
     classification.intent === 'SUITABILITY_CHECK'
   ) {
-    if (isConsentAcknowledged || sessionState?.hasConsented) {
-      preflightBlocks.push({
-        rule: 'SUITABILITY_OVERRIDE_LOGGED',
-        severity: 'SOFT_WARN',
-        directive:
-          `[PRE-FLIGHT WARNING — SUITABILITY_OVERRIDE]: Conservative risk profile detected, but client explicitly acknowledged the risk. ` +
-          `Output MUST begin with a strict suitability warning stating this action is against their registered profile and they bear sole liability. ` +
-          `Then, answer their query while emphasizing the high volatility of the instrument.`,
-      });
-      console.warn('[L2-TWIN] SOFT_WARN | rule: SUITABILITY_OVERRIDE_LOGGED | profile: Conservative');
-    } else if (sessionState?.hasBeenDeferred) {
-      preflightBlocks.push({
-        rule: 'SUITABILITY_HARD_STOP',
-        severity: 'HARD_STOP',
-        directive:
-          `[PRE-FLIGHT BLOCK — SUITABILITY]: Conservative risk profile detected with high-risk instrument request. ` +
-          `Output MUST begin with a suitability refusal, then offer a safer alternative. ` +
-          `SEBI-aware framing: "Based on your Conservative risk profile, high-volatility instruments ` +
-          `may not align with your financial goals. I recommend Large Cap or Balanced Advantage Funds ` +
-          `as a more suitable alternative." No exceptions to this directive.`,
-      });
-      requiresExplicitConsent = true;
-      console.warn('[L2-TWIN] HARD_STOP | rule: SUITABILITY_HARD_STOP | profile: Conservative | 2nd Strike (Consent Required)');
-    } else {
-      preflightBlocks.push({
-        rule: 'SUITABILITY_HARD_STOP',
-        severity: 'HARD_STOP',
-        directive:
-          `[PRE-FLIGHT BLOCK — SUITABILITY]: Conservative risk profile detected with high-risk instrument request. ` +
-          `Output MUST begin with an educational explanation of the high risks, defer the customer, and offer a safer alternative. ` +
-          `SEBI-aware framing: "Based on your Conservative risk profile, high-volatility instruments ` +
-          `may not align with your financial goals. I recommend Large Cap or Balanced Advantage Funds ` +
-          `as a more suitable alternative." No exceptions to this directive.`,
-      });
-      // 1st strike: Do NOT set requiresExplicitConsent = true. AI will defer and explain.
-      console.warn('[L2-TWIN] HARD_STOP | rule: SUITABILITY_HARD_STOP | profile: Conservative | 1st Strike (Deferral)');
-    }
+    preflightBlocks.push({
+      rule: 'SUITABILITY_HARD_STOP',
+      severity: 'HARD_STOP',
+      directive:
+        `[PRE-FLIGHT BLOCK — SUITABILITY]: Conservative risk profile detected with high-risk instrument request. ` +
+        `Output MUST begin with a suitability refusal, then offer a safer alternative. ` +
+        `SEBI-aware framing: "Based on your Conservative risk profile, high-volatility instruments ` +
+        `may not align with your financial goals. I recommend Large Cap or Balanced Advantage Funds ` +
+        `as a more suitable alternative." No exceptions to this directive.`,
+    });
+    console.warn('[L2-TWIN] HARD_STOP | rule: SUITABILITY_HARD_STOP | profile: Conservative');
   }
 
-  /**
-   * Rule 4: Senior Citizen + Growth-Oriented Goal Planning
-   */
+  // ── Rule 4: Senior Citizen + Growth-Oriented Goal Planning ────────────────
   if (profile.age >= 60 && classification.intent === 'GOAL_PLANNING') {
     preflightBlocks.push({
       rule: 'SENIOR_PRESERVATION_MANDATE',
@@ -156,9 +105,7 @@ export function validateFinancialTwin(
     console.warn(`[L2-TWIN] SOFT_WARN | rule: SENIOR_PRESERVATION_MANDATE | age: ${profile.age}`);
   }
 
-  /**
-   * Rule 5: High EMI Burden
-   */
+  // ── Rule 5: High EMI Burden ────────────────────────────────────────────────
   if (emiBurdenPercent > 50) {
     preflightBlocks.push({
       rule: 'EMI_BURDEN_ALERT',
@@ -172,9 +119,7 @@ export function validateFinancialTwin(
     console.warn(`[L2-TWIN] SOFT_WARN | rule: EMI_BURDEN_ALERT | burden: ${emiBurdenPercent.toFixed(0)}%`);
   }
 
-  /**
-   * Profile Completeness Scoring
-   */
+  // ── Profile Completeness Scoring ──────────────────────────────────────────
   const completenessChecks: boolean[] = [
     !!profile.name && profile.name.length > 0,
     profile.age > 0 && profile.age < 120,
@@ -198,7 +143,5 @@ export function validateFinancialTwin(
     preflightBlocks,
     enrichedContext,
     requiresEscalation,
-    clientOverrideAcknowledged: isConsentAcknowledged,
-    requiresExplicitConsent,
   };
 }

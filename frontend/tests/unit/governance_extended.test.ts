@@ -7,13 +7,6 @@
  * Run with: npm test
  */
 
-/**
- * @file governance_extended.test.ts
- * [Last Updated: 2026-06-24T18:41:02+05:30]
- * @description Extended governance unit tests for the 7-Layer pipeline.
- * Includes coverage for DPDP compliance rules (e.g., asserting that `customerId` 
- * is a 64-character SHA-256 cryptographic hash in the audit trails).
- */
 import { describe, it, expect } from 'vitest';
 
 // ── Layer imports ────────────────────────────────────────────────────────────────
@@ -706,8 +699,6 @@ describe('L7 — Audit Trail (createAuditEntry, getSessionAuditLog, getSessionSt
     disclosuresInjected: ['Past performance disclaimer.'],
     wasBlocked: false,
     confidenceScore: 0.96,
-    clientOverrideAcknowledged: false,
-    networkContext: { ipAddress: '127.0.0.1', userAgent: 'test-agent' },
   };
 
   it('createAuditEntry returns an entry with a generated auditId', () => {
@@ -730,8 +721,7 @@ describe('L7 — Audit Trail (createAuditEntry, getSessionAuditLog, getSessionSt
   it('createAuditEntry preserves all input fields on the entry', () => {
     const entry = createAuditEntry(baseAuditData);
     expect(entry.sessionId).toBe(sessionId);
-    // customerId is now cryptographically hashed
-    expect(entry.customerId).toMatch(/^[a-f0-9]{64}$/);
+    expect(entry.customerId).toBe('cust-audit-001');
     expect(entry.rawInput).toBe('Should I stop my SIP?');
     expect(entry.classificationResult.intent).toBe('RESILIENCE');
     expect(entry.enginesFired).toContain('RESILIENCE');

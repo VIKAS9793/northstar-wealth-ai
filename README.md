@@ -1,8 +1,6 @@
 # NorthStar Wealth Companion
 
-*Document last updated: 2026-06-24*
-
-![Project Banner](docs/assets/project_banner.png)
+![Project Banner](https://raw.githubusercontent.com/VIKAS9793/northstar-wealth-ai/main/docs/assets/project_banner.png)
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
@@ -19,7 +17,9 @@ An AI-powered Wealth Management interface built for the modern Indian investor. 
 
 ## Video Walkthrough
 
-▶️ [**Click here to watch the full 3-minute mobile app walkthrough on YouTube**](https://youtu.be/AL3z0U6U8vM)
+[![NorthStar Wealth Companion Demo](https://img.youtube.com/vi/AL3z0U6U8vM/maxresdefault.jpg)](https://youtu.be/AL3z0U6U8vM)
+
+*Click the image above to watch the full 3-minute mobile app walkthrough on YouTube.*
 
 ## Why This Project Exists
 
@@ -98,7 +98,7 @@ The solution is designed as a Proof of Concept for the IDBI Innovate 2026 Wealth
 to create a continuously evolving Financial Twin and personalized guidance experience.
 
 > [!IMPORTANT]
-> **For detailed architecture, DPDP Act compliance, and scaling strategies, please read the [SCALING ARCHITECTURE](docs/PRODUCTION_SCALING_ARCHITECTURE.md) document.**
+> **For detailed enterprise integration, DPDP Act compliance, and our strategy for scaling this to millions of IDBI users using Core Banking Systems, please read the [PRODUCTION SCALING ARCHITECTURE](docs/PRODUCTION_SCALING_ARCHITECTURE.md) document.**
 
 ---
 
@@ -113,7 +113,7 @@ graph TD
   L1 -->|PASS| L2[L2: Financial Twin Validation - Pre-flight Rules]
   L2 -->|requiresEscalation| RM[Human RM Escalation]
   L2 -->|PASS| L4[L4: Engine Director - Conflict Resolution]
-  L4 --> L5[L5: LLM Generation via NVIDIA NIM]
+  L4 --> L5[L5: LLM Generation - Llama 3.3 70B via NVIDIA NIM]
   L5 --> L3[L3: Constitutional AI Critique - Self-Review Loop]
   L3 --> L6[L6: Post-Generation Compliance Filter]
   L6 --> L7[L7: Audit Trail - Immutable Session Log]
@@ -132,15 +132,16 @@ This design allows the system to remain model-agnostic. Currently, the orchestra
 
 ## Testing Architecture & Quality Assurance
 
-The governance pipeline is validated by a test suite using **Vitest**. All 270 tests across 8+ suites pass.
+The governance pipeline is validated by an enterprise-grade test suite using **Vitest**. All 158 tests across 6 suites pass.
 
 | Suite | Tests | What It Covers |
 |---|---|---|
 | `governance_extended.test.ts` | 90 | L1 extended classifications, L2 bounds checking, L4 complex multi-engine suppression rules, L6 regex edge cases, L7 audit session stats |
 | `governance.test.ts` | 42 | L0 threat detection, L1 confidence classification, L2 preflight rules, L4 engine conflict resolution, L6 compliance filter |
 | `constitution.test.ts` | 16 | L3 constitutional principle coverage, `requiresConstitutionalReview` gating logic, JSON parse failure fallback |
-| `orchestrator.*.test.ts` | 115 | Full pipeline integration, preservation mandates, audit log verification, bug conditions, and unit isolation. |
-| `avatarStateManager.test.ts` | 7 | Avatar state machine race-condition and transition correctness |
+| `orchestrator.test.ts` | 3 | Full pipeline integration: suitability hard-rejection, off-topic routing, RM escalation |
+| `mathematicalLimits.test.ts` | 2 | Deterministic goal feasibility — rejects mathematically impossible investment plans |
+| `avatarStateManager.test.ts` | 5 | Avatar state machine race-condition and transition correctness |
 
 Key coverage highlights:
 - Semantic jailbreak detection (Jaccard similarity, not just regex)
@@ -151,20 +152,20 @@ Key coverage highlights:
 ## Hackathon Submission Framing
 
 **1. Mobile Banking Integration Architecture**
-> The IDBI Wealth Companion presented in this POC is built as a highly responsive, standalone progressive web application (React/Next.js) strictly constrained to a mobile viewport. This design choice was made to rapidly demonstrate the core conversational capabilities and behavioral engines. However, the target architecture is a **modular, drop-in SDK (Software Development Kit)** designed specifically for seamless embedding within existing native mobile banking applications (iOS/Android).
+> "The IDBI Wealth Companion presented in this POC is built as a highly responsive, standalone progressive web application (React/Next.js) strictly constrained to a mobile viewport. This design choice was made to rapidly demonstrate the core conversational capabilities and behavioral engines. However, the production target architecture is a **modular, drop-in SDK (Software Development Kit)** designed specifically for seamless embedding within IDBI's existing native mobile banking applications (iOS/Android). The UI components and chat interfaces are loosely coupled from the banking dashboard, ensuring the IDBI Mobile Team can import the `WealthCompanion` module without disrupting existing banking workflows."
 
 **2. Behavioral Telemetry & Spending Habits Feed**
-> To deliver highly personalized, timely advice, the system relies on deep behavioral telemetry. In this sandbox phase, the cashflow profile is mocked via static persona generation to demonstrate the mathematical routing of the Central Nervous System (CNS) layer. For the final rollout, this telemetry layer is architected to ingest live transaction feeds from core banking databases.
+> "To deliver highly personalized, timely advice, the system relies on deep behavioral telemetry. In this sandbox phase, the cashflow profile (Monthly Outflows, EMI Burden, Discretionary Spend) is mocked via static persona generation to demonstrate the mathematical routing of the Central Nervous System (CNS) layer. For the final production rollout, this telemetry layer is architected to ingest live transaction feeds from IDBI's core banking databases. This enables the engine to automatically compute the customer's true spending habits and trigger real-time, proactive nudges (e.g., detecting a salary credit and immediately recommending a Step-Up SIP before the capital is spent)."
 
 **3. Timely & Proactive Nudges (The "Timely" Requirement)**
-> Unlike traditional reactive chatbots, Dhan operates as a proactive wealth manager. The architecture includes a webhook-ready listener designed to trigger event-driven outreach. For example, the system monitors specific transaction events (like a large bonus credit or a missed SIP). When triggered, Dhan initiates the conversation, surfacing a push notification to the customer with personalized advice. (Note: The UI currently uses a simulated Event Trigger.)
+> "Unlike traditional reactive chatbots, Dhan operates as a proactive wealth manager. The architecture includes a webhook-ready listener designed to trigger event-driven outreach. For example, the system monitors specific transaction events (like a large bonus credit or a missed SIP). When triggered, Dhan initiates the conversation, surfacing a push notification to the customer with personalized advice, transforming the wealth management experience from passive querying to active guidance. (Note: The UI currently uses a simulated Event Trigger. Production: POST /api/webhooks/salary-credit fires automatically on IDBI core banking salary credit event.)"
 
 **4. Scalable Chat Context & Token Management**
-> To ensure scalability and low latency, the conversational AI manages token limits rigorously. The implementation uses a sliding context window of the last 6 exchanges, with a structured, condensed summary of the Financial Twin snapshot injected at position 0. This prevents unbound chat history growth and guarantees fast inference times.
+> "To ensure enterprise scalability and low latency, the conversational AI manages token limits rigorously. The production implementation uses a sliding context window of the last 6 exchanges, with a structured, condensed summary of the Financial Twin snapshot injected at position 0. This prevents unbound chat history growth and guarantees fast inference times without context degradation."
 
-## Integration Readiness Statement
+## Post-Shortlist Integration Readiness Statement
 
-> Upon integration, the Financial Twin will migrate from synthetic persona data to real customer profiles via sandbox APIs:
+> Upon shortlisting, the Financial Twin will migrate from synthetic persona data to real customer profiles via IDBI's sandbox APIs:
 >
 > - **Customer Profile API** — initializes Financial Twin (age, income, risk profile, persona type)
 > - **Portfolio Holdings API** — replaces `total_invested` and `current_value` mock fields
@@ -174,7 +175,7 @@ Key coverage highlights:
 >
 > The `getMockFinancialTwin()` function is the single integration boundary. Switching to live data requires replacing this function only. All downstream engines — Goal, Resilience, Suitability, Behavioral, Education — consume the `FinancialTwinProfile` interface and require no modification.
 >
-> Deployment is infrastructure-agnostic and designed for migration into bank-controlled environments. Supabase is not used in this implementation. The NVIDIA NIM inference endpoint can be replaced with an on-premise or approved inference layer.
+> Production deployment is infrastructure-agnostic and designed for migration into IDBI-controlled environments. Supabase is not used in this implementation. The NVIDIA NIM inference endpoint will be replaced with an on-premise or IDBI-approved inference layer post-shortlisting.
 
 ## Running the Application
 

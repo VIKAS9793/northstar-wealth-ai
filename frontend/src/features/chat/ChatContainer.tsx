@@ -1,13 +1,3 @@
-/**
- * @file ChatContainer.tsx
- * [Last Updated: 2026-06-24T18:41:02+05:30]
- * @description Core conversational interface for NorthStar Wealth Companion.
- * 
- * NOTE ON UI SCRUBBING:
- * This component intercepts the raw `[SYSTEM_INTENT: OVERRIDE_CONSENT_GRANTED]`
- * token emitted during a 2nd-strike liability acceptance and scrubs it from the 
- * user's view, rendering a visually distinct "Liability Acknowledged" confirmation instead.
- */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -15,7 +5,6 @@ import { DhanAvatar } from "@/components/avatar/DhanAvatar";
 import { AvatarState, ConversationEvent } from "@/components/avatar/avatarStates";
 import { getNextState } from "@/components/avatar/AvatarStateManager";
 import { ChatBubble } from "./ChatBubbles";
-import { ConsentWidget } from "./ConsentWidget";
 import { sendChatMessage } from "@/services/repositories/chatRepository";
 import { useAudio } from "@/shared/hooks/useAudio";
 import { Send } from "lucide-react";
@@ -24,7 +13,6 @@ import { FinancialTwinProfile } from "@/features/financial-twin/types";
 interface Message {
   role: "user" | "ai";
   content: string;
-  requiresExplicitConsent?: boolean;
 }
 
 interface ChatContainerProps {
@@ -178,17 +166,9 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
         customerProfile: customer,
         chatHistory,
         sessionId: customer.id,
-        onMetadata: (intent, wasComplianceBlocked, requiresConsent) => {
+        onMetadata: (intent, wasComplianceBlocked) => {
           setIsLoading(false); // Stop typing indicator as soon as stream starts
           
-          if (requiresConsent) {
-            setMessages(prev => {
-              const newMessages = [...prev];
-              newMessages[newMessages.length - 1].requiresExplicitConsent = true;
-              return newMessages;
-            });
-          }
-
           if (wasComplianceBlocked || intent === 'TAX_PLANNING') {
             playSound('alert');
             dispatchAvatarEvent('COMPLIANCE_TRIGGER');
@@ -263,24 +243,7 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
       <div ref={scrollRef} className="flex-1 overflow-y-auto w-full pb-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
         <div className="p-6 flex flex-col space-y-6">
           {messages.map((msg, idx) => (
-            <div key={idx} className="flex flex-col">
-              {msg.content.trim() === '[SYSTEM_INTENT: OVERRIDE_CONSENT_GRANTED]' ? (
-                <div className="my-4 self-center max-w-sm w-full bg-brand-light border border-brand-green/20 rounded-xl p-4 flex flex-col shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <svg className="w-5 h-5 text-brand-green shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span className="text-sm font-semibold text-brand-green">Acknowledgement Received</span>
-                  </div>
-                  <p className="text-xs text-brand-navy/70 ml-7">We have noted your confirmation to proceed with this action.</p>
-                </div>
-              ) : (
-                <ChatBubble role={msg.role} content={msg.content} />
-              )}
-              {msg.requiresExplicitConsent && msg.role === 'ai' && (
-                <div className="mt-2 self-start md:ml-12 w-full max-w-[85%]">
-                  <ConsentWidget onAccept={handleSend} disabled={idx !== messages.length - 1} />
-                </div>
-              )}
-            </div>
+            <ChatBubble key={idx} role={msg.role} content={msg.content} />
           ))}
           {isLoading && (
             <div className="self-start max-w-[85%] bg-white border-l-4 border-brand-gold p-4 rounded-xl rounded-tl-none shadow-sm flex items-center gap-2 h-[52px]">

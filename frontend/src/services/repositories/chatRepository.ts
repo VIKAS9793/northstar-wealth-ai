@@ -6,7 +6,7 @@ export interface ChatRequestPayload {
   customerProfile: FinancialTwinProfile;
   chatHistory?: { role: string; content: string }[];
   sessionId?: string;
-  onMetadata?: (intent: string, wasComplianceBlocked: boolean, requiresExplicitConsent: boolean) => void;
+  onMetadata?: (intent: string, wasComplianceBlocked: boolean) => void;
   onChunk?: (text: string) => void;
 }
 
@@ -20,7 +20,6 @@ interface ChatSseEvent {
   type?: 'metadata' | 'text';
   intent?: string;
   wasComplianceBlocked?: boolean;
-  requiresExplicitConsent?: boolean;
   error?: string;
   text?: string;
 }
@@ -73,7 +72,7 @@ export async function sendChatMessage(payload: ChatRequestPayload, retries = 1):
           try {
             const data = JSON.parse(dataStr) as ChatSseEvent;
             if (data.type === 'metadata') {
-              if (payload.onMetadata) payload.onMetadata(data.intent ?? 'GENERAL', !!data.wasComplianceBlocked, !!data.requiresExplicitConsent);
+              if (payload.onMetadata) payload.onMetadata(data.intent ?? 'GENERAL', !!data.wasComplianceBlocked);
               if (data.error) throw new Error(data.error);
             } else if (data.type === 'text') {
               if (payload.onChunk && data.text) payload.onChunk(data.text);
@@ -91,7 +90,7 @@ export async function sendChatMessage(payload: ChatRequestPayload, retries = 1):
     const isNetworkError = error instanceof TypeError; // fetch network failure
     const wasAborted = error instanceof Error && error.name === 'AbortError' || (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError');
     
-    if (isNetworkError && !wasAborted && retries > 0) {
+    if ((isNetworkError || wasAborted) && retries > 0) {
       // Wait 1.5s then retry once — covers transient mobile handoff errors and Next.js dev server stalls
       await new Promise(r => setTimeout(r, 1500));
       return sendChatMessage(payload, retries - 1);
