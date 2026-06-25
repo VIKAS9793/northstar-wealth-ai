@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { generateAIResponse, OrchestratorPayload } from '@/services/ai/orchestrator';
 
 export const maxDuration = 60; // Prevent 10s serverless timeouts on Netlify/Vercel
+export const runtime = 'edge'; // Deploy to Edge Runtime to completely bypass wall-clock timeouts
 
 /**
  * API Route: /api/chat

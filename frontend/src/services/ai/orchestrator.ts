@@ -281,7 +281,7 @@ export async function generateAIResponse(
     ? { threatLevel: 'CLEAN' as const } 
     : assessThreatLevel(message);
   if (threatAssessment.threatLevel === 'HARD_BLOCK') {
-    createAuditEntry({
+    await createAuditEntry({
       sessionId,
       customerId: profile.id,
       rawInput: message,
@@ -560,7 +560,7 @@ ${STRUCTURED_OUTPUT_SYSTEM_SUFFIX}`;
   // ══════════════════════════════════════════════════════════════════════════
   // L7 — AUDIT TRAIL
   // ══════════════════════════════════════════════════════════════════════════
-  const auditEntry = createAuditEntry({
+  const auditEntry = await createAuditEntry({
     sessionId,
     customerId: profile.id,
     rawInput: message,
