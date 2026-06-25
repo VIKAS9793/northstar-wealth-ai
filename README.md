@@ -19,9 +19,7 @@ An AI-powered Wealth Management interface built for the modern Indian investor. 
 
 ## Video Walkthrough
 
-[![NorthStar Wealth Companion Demo](https://img.youtube.com/vi/AL3z0U6U8vM/maxresdefault.jpg)](https://youtu.be/AL3z0U6U8vM)
-
-*Click the image above to watch the full 3-minute mobile app walkthrough on YouTube.*
+▶️ [**Click here to watch the full 3-minute mobile app walkthrough on YouTube**](https://youtu.be/AL3z0U6U8vM)
 
 ## Why This Project Exists
 
