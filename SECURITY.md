@@ -1,5 +1,7 @@
 # Security Policy
 
+*Document last updated: 2026-06-24*
+
 **Project:** NorthStar Wealth Companion — IDBI Innovate 2026  
 **Maintainer:** Vikas Sahani  
 **Classification:** Public Prototype / Proof of Concept  
@@ -105,7 +107,7 @@ Violations trigger a hardcoded safe fallback response. The LLM output is never r
 
 Every interaction produces an immutable `AuditEntry` recording the full governance decision chain: threat level, classification, preflight blocks, constitutional violations, compliance outcome, and the final response delivered.
 
-Storage: In-memory session map for prototype. Production target: `POST /api/idbi/audit/wealth-ai` with bearer token auth.
+Storage: In-memory session map for prototype. Future target: `POST /api/idbi/audit/wealth-ai` with bearer token auth.
 
 ---
 
@@ -179,7 +181,7 @@ cd frontend
 npm audit
 ```
 
-All production dependencies should resolve with zero high or critical vulnerabilities. The project uses a minimal dependency surface:
+All core dependencies should resolve with zero high or critical vulnerabilities. The project uses a minimal dependency surface:
 - Next.js 15 (framework)
 - React 19 (UI)
 - OpenAI SDK (NVIDIA NIM-compatible client)
@@ -188,7 +190,7 @@ All production dependencies should resolve with zero high or critical vulnerabil
 
 ### Policy
 
-- No new production dependencies are added without explicit justification
+- No new dependencies are added without explicit justification
 - Dependencies are pinned to exact versions in `package.json` for reproducible builds
 - `npm audit` is run before any push to `main`
 
@@ -213,21 +215,21 @@ The `/api/chat` route (`frontend/src/app/api/chat/route.ts`) implements:
 - Session correlation via `x-session-id` header for audit trail grouping
 - SSE keep-alive to prevent connection timeout exploits
 
-### Production Hardening Required Before Real Deployment
+### Additional Hardening Required Before Future Deployment
 
 > [!WARNING]
-> The following controls are NOT present in this prototype and MUST be implemented before any production or banking integration:
+> Some of the following controls have been implemented, while others must be implemented before any real banking integration:
 
-| Control | Current State | Production Requirement |
+| Control | Current State | Future Requirement |
 |---|---|---|
 | Authentication | None | OAuth 2.0 / IDBI SSO integration |
-| Rate limiting | None | Per-IP and per-session rate limiting on `/api/chat` |
+| Rate limiting | Implemented | In-memory 20 req/min per IP on `/api/chat` |
 | Input size cap | 800-char soft warn | Hard HTTP 413 at API route layer |
 | Audit persistence | In-memory | POST to IDBI-controlled audit infrastructure |
 | NVIDIA NIM key | Shared API key | Per-environment rotated key with secret manager |
-| HTTPS enforcement | Netlify default | Bank-grade TLS 1.3 + HSTS |
-| CSP headers | None | Strict Content-Security-Policy |
-| CORS policy | Next.js default | Restricted to IDBI-controlled origins |
+| HTTPS enforcement | Implemented | Bank-grade TLS 1.3 + HSTS applied via next.config.ts |
+| CSP headers | Implemented | Strict Content-Security-Policy applied via next.config.ts |
+| CORS policy | Implemented | Origin validation added to `/api/chat` |
 
 ---
 
@@ -247,10 +249,10 @@ No failure mode results in an unfiltered LLM response reaching the user.
 
 | Limitation | Risk | Mitigation |
 |---|---|---|
-| Jaccard similarity is shallow | Sophisticated semantic attacks may evade L0 | Production: replace with embedding-based similarity or a fine-tuned classifier |
-| Constitutional critique makes a second LLM call | The LLM could be prompted to produce a compliant-looking but misleading revision | Production: use a separate, smaller reviewer model fine-tuned on financial compliance |
+| Jaccard similarity is shallow | Sophisticated semantic attacks may evade L0 | Future: replace with embedding-based similarity or a fine-tuned classifier |
+| Constitutional critique makes a second LLM call | The LLM could be prompted to produce a compliant-looking but misleading revision | Future: use a separate, smaller reviewer model fine-tuned on financial compliance |
 | Compliance filter is regex-based | Context-dependent violations (implied guarantees) may pass | L3 constitutional critique provides secondary coverage for contextual violations |
-| Audit log is in-memory | Audit trail lost on server restart | Production: persistent write to IDBI audit infrastructure before response is returned |
+| Audit log is in-memory | Audit trail lost on server restart | Future: persistent write to IDBI audit infrastructure before response is returned |
 
 ---
 
@@ -268,9 +270,10 @@ npm test
 | `governance_extended.test.ts` | 90 | Extended L0 scenarios, extreme twin boundaries, L4 priority tests, L6 evasion matrix, L7 audit |
 | `governance.test.ts` | 42 | L0 threat blocking, L1 OOD rejection, L2 preflight hard stops, L6 prohibited term detection |
 | `constitution.test.ts` | 16 | L3 constitutional principle enforcement, JSON parse failure safety |
-| `orchestrator.test.ts` | 3 | End-to-end suitability hard rejection, off-topic routing |
+| `orchestrator.*.test.ts` | 115 | End-to-end suitability hard rejection, off-topic routing, bug conditions, etc. |
+| `avatarStateManager.test.ts` | 7 | Avatar state machine race-condition and transition correctness |
 
-All 158 tests must pass before any commit reaches `main`.
+All 270 tests must pass before any commit reaches `main`.
 
 ---
 
@@ -282,7 +285,7 @@ This prototype is architecturally aligned with the following frameworks. It does
 |---|---|---|
 | SEBI IA Regulations 2013 (amended 2020) | Robo-advisory suitability and disclosure | L2 preflight rules, L6 mandatory disclosures |
 | AMFI Investor Protection Guidelines | Prohibited advisory language | L6 prohibited term patterns |
-| Anthropic Constitutional AI (2022) | Self-critique methodology | L3 constitutional review loop |
+| Constitutional AI Principles | Self-critique methodology | L3 constitutional review loop |
 | OWASP LLM Top 10 | LLM-specific attack surface | L0 threat isolation covers LLM01 (prompt injection) |
 
 ---

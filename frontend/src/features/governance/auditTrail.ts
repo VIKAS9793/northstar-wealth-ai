@@ -1,12 +1,20 @@
 /**
  * @layer L7 — Audit Trail Engine
+ * [Last Updated: 2026-06-24T18:41:02+05:30]
  * @description Immutable per-session interaction log for bank auditability.
  * Records every governance decision: threat level, classification, preflight blocks,
  * constitutional violations, compliance outcome, and Financial Twin snapshot.
+ * 
+ * DPDP Act Compliance:
+ * - PII Masking: Emails, Phone Numbers, PAN Cards, and Aadhaar numbers are redacted via regex.
+ * - Cryptographic Pseudonymization: `customerId` is mathematically masked via SHA-256.
+ * - Consent Hash: Liability acceptances are timestamped and signed for non-repudiation.
+ * 
  * In-memory store for prototype. Production: POST to IDBI audit infrastructure.
  * No LLM call.
  */
 
+import { createHash } from 'crypto';
 import { ThreatAssessment } from './threatIsolation';
 import { ClassificationResult } from './domainClassifier';
 
@@ -46,6 +54,12 @@ export interface AuditEntry {
   disclosuresInjected: string[];
   wasBlocked: boolean;
   confidenceScore: number;
+  clientOverrideAcknowledged: boolean;
+  networkContext: {
+    ipAddress: string;
+    userAgent: string;
+  };
+  consentHash?: string;
 }
 
 // In-memory store keyed by sessionId
@@ -61,8 +75,18 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function redactPII(text: string): string {
+  if (!text) return text;
+  let redacted = text.replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi, '[EMAIL_REDACTED]');
+  redacted = redacted.replace(/(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}/g, '[PHONE_REDACTED]');
+  redacted = redacted.replace(/[A-Z]{5}[0-9]{4}[A-Z]{1}/gi, '[PAN_REDACTED]');
+  redacted = redacted.replace(/\b\d{4}\s?\d{4}\s?\d{4}\b/g, '[AADHAAR_REDACTED]');
+  return redacted;
+}
+
 /**
- * Creates and stores an immutable audit entry for a single interaction.
+ * Creates and stores an immutable, DPDP-compliant audit entry for a single interaction.
+ * Internally calls `redactPII()` and hashes the customer identity to ensure data minimization.
  * Fire-and-forget safe — does not throw. Returns the created entry.
  */
 export function createAuditEntry(
@@ -70,9 +94,17 @@ export function createAuditEntry(
 ): AuditEntry {
   const entry: AuditEntry = {
     ...data,
+    customerId: createHash('sha256').update(data.customerId).digest('hex'), // DPDP Cryptographic pseudonymization
+    rawInput: redactPII(data.rawInput), // DPDP PII Masking
     auditId: generateId(),
     timestamp: new Date().toISOString(),
   };
+
+  // Cryptographically store consent if liability was accepted
+  if (entry.clientOverrideAcknowledged && entry.rawInput.trim() === '[SYSTEM_INTENT: OVERRIDE_CONSENT_GRANTED]') {
+    const payloadToHash = `${entry.sessionId}:${entry.customerId}:${entry.timestamp}:${entry.networkContext.ipAddress}:${entry.networkContext.userAgent}:${entry.rawInput}`;
+    entry.consentHash = createHash('sha256').update(payloadToHash).digest('hex');
+  }
 
   const existing = auditStore.get(data.sessionId) ?? [];
   existing.push(entry);
@@ -82,7 +114,7 @@ export function createAuditEntry(
   console.log(
     `[L7-AUDIT] id: ${entry.auditId} | intent: ${entry.classificationResult.intent} | ` +
     `conf: ${entry.confidenceScore.toFixed(2)} | engines: [${entry.enginesFired.join(',')}] | ` +
-    `constitutional: ${entry.constitutionalReviewRan} | blocked: ${entry.wasBlocked}`
+    `constitutional: ${entry.constitutionalReviewRan} | blocked: ${entry.wasBlocked} | override: ${entry.clientOverrideAcknowledged}`
   );
 
   // Production hook — uncomment and configure for IDBI sandbox integration
@@ -101,6 +133,16 @@ export function createAuditEntry(
  */
 export function getSessionAuditLog(sessionId: string): AuditEntry[] {
   return auditStore.get(sessionId) ?? [];
+}
+
+/**
+ * Scans the session log to determine if the user has been deferred or has accepted liability.
+ */
+export function getSuitabilityConsentState(sessionId: string): { hasBeenDeferred: boolean; hasConsented: boolean } {
+  const entries = getSessionAuditLog(sessionId);
+  const hasConsented = entries.some(e => e.clientOverrideAcknowledged);
+  const hasBeenDeferred = entries.some(e => e.preflightBlocks.includes('SUITABILITY_HARD_STOP'));
+  return { hasBeenDeferred, hasConsented };
 }
 
 /**

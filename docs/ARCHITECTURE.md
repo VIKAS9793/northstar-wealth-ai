@@ -17,7 +17,11 @@ The solution is built around four recurring patterns:
 3. **Field-Tested Financial Education**: Financial concepts become understandable when explained through relatable mental models that have *already proven effective* in real customer conversations (e.g., Compounding to Mango Tree, Diversification to Cricket Team, SIP to Sale Season).
 4. **Behavioral Suitability By Life Stage**: Investor priorities and fears change significantly across life stages (20 to 35 fear missing growth; 35 to 50 fear balancing EMIs/goals; 60+ fear outliving savings). This influences suitability decisions far beyond standard risk scores.
 
-These observations form the foundation of the product's architecture, conversational design, educational framework, behavioral coaching system, and financial resilience capabilities. 
+# 🏗️ NorthStar Architecture & Engineering Principles
+
+*Document last updated: 2026-06-24*
+
+These observations form the foundation of the product's architecture, conversational design, educational framework, behavioral coaching system, and financial resilience capabilities.
 
 > [!IMPORTANT]
 > **The AI layer exists to scale these insights, not replace them.**
@@ -220,14 +224,14 @@ IDBI's retail wealth customer base includes a large segment with investable surp
 # Compliance & Regulatory Standing
 **Operating within IDBI Bank's existing AMFI/IA regulatory framework, not as a standalone advisory entity.** The system provides incidental advice and guidance embedded in the banking relationship, utilizing IDBI's existing execution infrastructure to ensure strict adherence to SEBI regulations.
 
-# Production Roadmap: Addressing Intent Ambiguity & DPDP Compliance
-*Status: Identified vulnerability to be solved in production scaling.*
+# Roadmap: Addressing Intent Ambiguity & DPDP Compliance
+*Status: Identified vulnerability to be solved in future scaling.*
 
 **The Ambiguity Challenge in the Indian Market:**
 The current Proof of Concept (PoC) relies on a zero-latency Regex/Lexical engine for intent classification. However, we acknowledge that Indian retail queries are highly fluid, deeply contextual, and multi-lingual (Hinglish). For instance, a tax advisory query like *"mein tax kaise bachau"* can evade strict deterministic regex boundaries designed for *"tax planning"*. Adding infinite regex permutations creates unmaintainable rule bloat and false positives.
 
-**Production Solution (Semantic Telemetry Loop):**
-For the live production environment, the L1 Regex engine will be replaced by a local, lightweight Semantic Embedding Model (e.g., BGE-m3). 
+**Solution (Semantic Telemetry Loop):**
+For future environments, the L1 Regex engine will be replaced by a local, lightweight Semantic Embedding Model (e.g., BGE-m3). 
 1. **Semantic Routing:** User intents will be matched mathematically (Cosine Similarity) rather than lexically, catching the *meaning* of *"tax bachana hai"* without relying on exact wording.
 2. **Telemetry Collection & Active Learning:** Queries that fall below confidence thresholds will be gracefully escalated to human RMs but logged in a `MissedIntents` telemetry database for continuous model improvement.
 
@@ -236,7 +240,7 @@ To train this semantic engine ethically and legally under India's Digital Person
 * Explicit, upfront consent will be secured, notifying users that their interactions may be utilized for AI training and quality audits.
 * All telemetry data collected for training will be strictly **anonymized**. A zero-trust PII-scrubber will remove all names, account numbers, amounts, and sensitive identifiers *before* logging the interaction to the `MissedIntents` database. The AI will train purely on the conversational structure, never on personal financial data.
 
-# Scalability and Integration Readiness (Post-Shortlist Sandbox)
+# Scalability and Integration Readiness (Sandbox)
 To integrate deeply into IDBI's mobile ecosystem, the architecture maps to the following API connections:
 
 **Data Layer**
@@ -281,8 +285,8 @@ To integrate deeply into IDBI's mobile ecosystem, the architecture maps to the f
 
 ---
 
-# Phase 2: Vernacular Wealth Companion (Post-Shortlist)
-*Status: Planned post-shortlist enhancement following IDBI sandbox access.*
+# Phase 2: Vernacular Wealth Companion
+*Status: Planned enhancement following sandbox access.*
 
 **Features:**
 * **Voice-First Interactions**: Hands-free advisory for broader demographic reach.

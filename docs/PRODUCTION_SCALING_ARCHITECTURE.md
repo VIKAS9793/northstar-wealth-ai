@@ -1,20 +1,22 @@
-# 🚀 Production Scaling & Enterprise Integration Architecture
+# 🚀 Scaling & Integration Architecture
 
-![Status](https://img.shields.io/badge/Status-Production_Roadmap-blue)
+*Document last updated: 2026-06-24*
+
+![Status](https://img.shields.io/badge/Status-Roadmap-blue)
 ![Scale](https://img.shields.io/badge/Scale-10M%2B_Users-success)
 ![Compliance](https://img.shields.io/badge/Compliance-DPDP_Act_%7C_SEBI-critical)
 
 > [!WARNING]
 > **Projections Disclaimer**
-> The scaling architectures and CCU projections detailed in this document are forward-looking models based on IDBI's current CBS footprint. They do not represent deployed, live-tested enterprise capacity.
+> The scaling architectures and CCU projections detailed in this document are forward-looking models based on IDBI's current CBS footprint. They do not represent deployed, live-tested capacity.
 
 > [!NOTE]
 > **Executive Summary**
-> The NorthStar Wealth Companion is designed not as a monolithic disruption, but as an **agile, decoupled intelligence layer**. It sits on top of IDBI's existing Core Banking System (CBS) and Mutual Fund execution infrastructure. This document outlines how we scale the current Proof of Concept (PoC) to millions of retail banking users with zero disruption to legacy infrastructure, minimal latency, and strict enterprise compliance.
+> The NorthStar Wealth Companion is designed not as a monolithic disruption, but as an **agile, decoupled intelligence layer**. It sits on top of IDBI's existing Core Banking System (CBS) and Mutual Fund execution infrastructure. This document outlines how we scale the current Proof of Concept (PoC) to millions of retail banking users with zero disruption to legacy infrastructure, minimal latency, and strict compliance.
 
 ---
 
-## 🏗️ 1. Enterprise Integration Architecture
+## 🏗️ 1. Integration Architecture
 
 To handle millions of Concurrent Users (CCU) without overloading the bank's legacy databases, the architecture relies on asynchronous data streaming and a decoupled "Financial Twin" caching layer.
 
@@ -28,7 +30,7 @@ graph TD
 
     subgraph "Data Streaming & Caching Layer"
         KAFKA[Apache Kafka<br/>Event Streaming]
-        LAKE[Enterprise Data Lake]
+        LAKE[Data Lake]
         REDIS[(Redis Cluster<br/>Financial Twin State)]
     end
 
@@ -40,7 +42,7 @@ graph TD
     end
 
     subgraph "External LLM Tier"
-        LLM[Nvidia NIM / LLM API<br/>Llama-3 70B]
+        LLM[Nvidia NIM / LLM API]
     end
 
     CBS -- Nightly Batch / Events --> KAFKA
@@ -62,14 +64,14 @@ graph TD
 
 ---
 
-## ⚡ 2. Production Technology Stack
+## ⚡ 2. Technology Stack
 
-Aligning with modern Indian banking standards, the stack transitions from the PoC to robust enterprise technologies:
+Aligning with modern Indian banking standards, the stack transitions from the PoC to robust technologies:
 
-| Component | PoC Stack | Production Enterprise Stack | Justification |
+| Component | PoC Stack | Target Stack | Justification |
 | :--- | :--- | :--- | :--- |
 | **Core Integration** | Mock JSON | Kafka + REST APIs | Asynchronous, event-driven syncing to avoid CBS strain. |
-| **State Storage** | Local Browser State | Redis Enterprise | Sub-millisecond latency for Financial Twin data. |
+| **State Storage** | Local Browser State | Redis Cluster | Sub-millisecond latency for Financial Twin data. |
 | **Intent Classifier** | Regex (Lexical) | BGE-m3 (Semantic Vectors) | Handles fluid Hinglish queries natively. |
 | **LLM Inference** | Public LLM API | Self-Hosted Nvidia NIM | Data never leaves the banking Virtual Private Cloud (VPC). |
 | **Execution** | Console Logs | BSE StarMF / IDBI APIs | Real-world transaction routing and SIP creation. |
@@ -90,7 +92,7 @@ Running an LLM for millions of users is economically unviable if every query req
 
 ## 🛡️ 4. DPDP Act & SEBI Compliance (The Trust Layer)
 
-Indian enterprise banking requires absolute regulatory adherence, particularly concerning the **Digital Personal Data Protection (DPDP) Act, 2023** and **SEBI** advisory rules.
+Indian banking requires absolute regulatory adherence, particularly concerning the **Digital Personal Data Protection (DPDP) Act, 2023** and **SEBI** advisory rules.
 
 ### A. The Data Scrubbing Pipeline (DPDP)
 Before any interaction is logged for model training or audit purposes, it must pass through a strict PII (Personally Identifiable Information) scrubber.

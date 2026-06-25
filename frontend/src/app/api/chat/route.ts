@@ -8,8 +8,32 @@ import { generateAIResponse, OrchestratorPayload } from '@/services/ai/orchestra
  * MOD-3: Extracts sessionId from x-session-id header for audit trail.
  * MOD-3: Returns auditId in metadata chunk for client-side correlation.
  */
+const rateLimit = new Map<string, { count: number, resetAt: number }>();
+
 export async function POST(req: Request) {
   try {
+    // SECURITY: Extract Device & Network Identity for Audit Trail
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+
+    // SECURITY: In-Memory Rate Limiting (20 req / minute per IP)
+    const now = Date.now();
+    const ipData = rateLimit.get(clientIp);
+    if (ipData && ipData.resetAt > now) {
+      if (ipData.count >= 20) {
+        return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+      }
+      ipData.count++;
+    } else {
+      rateLimit.set(clientIp, { count: 1, resetAt: now + 60000 });
+    }
+
+    // SECURITY: Origin Validation
+    const origin = req.headers.get('origin') || req.headers.get('referer');
+    if (process.env.NODE_ENV === 'production' && origin && !origin.includes(process.env.ALLOWED_ORIGIN || 'localhost')) {
+      return NextResponse.json({ error: 'Forbidden Origin' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { message, customerProfile, chatHistory } = body;
 
@@ -29,7 +53,9 @@ export async function POST(req: Request) {
       message,
       customerProfile,
       chatHistory ?? [],
-      sessionId
+      sessionId,
+      clientIp,
+      userAgent
     ) as OrchestratorPayload;
 
     const encoder = new TextEncoder();
@@ -45,6 +71,7 @@ export async function POST(req: Request) {
           intent: result.intent,
           wasComplianceBlocked: result.wasComplianceBlocked,
           auditId: (result as { auditId?: string }).auditId,
+          requiresExplicitConsent: result.requiresExplicitConsent,
           error: result.success ? undefined : result.error
         };
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));

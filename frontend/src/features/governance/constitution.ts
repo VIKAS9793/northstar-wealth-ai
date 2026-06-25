@@ -1,8 +1,9 @@
 /**
  * @layer L3 — Constitutional AI Critique
- * @description Implements Anthropic's Constitutional AI self-critique methodology
+ * [Last Updated: 2026-06-24T18:41:02+05:30]
+ * @description Implements Constitutional AI self-critique methodology
  * for financial advisory compliance. The LLM critiques its own draft response
- * against 8 inviolable financial advice principles before the customer sees it.
+ * against 9 inviolable financial advice principles before the customer sees it.
  *
  * LATENCY CONTROL — CRITICAL:
  * This layer makes a SECOND LLM call. It MUST only fire when
@@ -12,8 +13,6 @@
  * Implementation: stream: false, temperature: 0.05, max_tokens: 400
  * On any failure (network, parse, timeout): passes original draft through.
  * Never blocks the response pipeline.
- *
- * Reference: Anthropic (2022) "Constitutional AI: Harmlessness from AI Feedback"
  */
 
 import OpenAI from 'openai';
@@ -31,12 +30,12 @@ export interface ConstitutionalReviewResult {
 }
 
 /**
- * The 8-principle financial advice constitution.
+ * The 9-principle financial advice constitution.
  * Adapted from SEBI IA Regulations + AMFI investor protection guidelines.
  */
 export const WEALTH_ADVISORY_CONSTITUTION = `
 You are a Constitutional AI Reviewer for a SEBI-aware Indian bank wealth management system.
-Evaluate the DRAFT RESPONSE below against these 8 inviolable principles.
+Evaluate the DRAFT RESPONSE below against these 9 inviolable principles.
 
 FINANCIAL ADVICE CONSTITUTION:
 
@@ -78,8 +77,13 @@ PRINCIPLE 8 — HONEST CAPABILITY CLAIMS
 The response must not claim access to real-time market data, live NAV prices, 
 live portfolio valuations, or SEBI regulatory approvals the system does not hold.
 
+PRINCIPLE 9 — ACCESSIBLE LANGUAGE & NO INTERNAL JARGON
+The response must use simple, accessible language to explain market risks and investment concepts.
+It must NEVER use the internal system term "Financial Twin"; use "financial profile" or "financial situation" instead.
+Avoid complex financial jargon to ensure the advice is easily understandable for all retail investors.
+
 EVALUATION TASK:
-Review the DRAFT RESPONSE against all 8 principles.
+Review the DRAFT RESPONSE against all 9 principles.
 Output ONLY valid JSON — no explanation, no preamble, no markdown:
 {
   "violations": ["PRINCIPLE N: brief explanation"] or [],
@@ -135,9 +139,9 @@ export async function runConstitutionalCritique(
     `\n\nDRAFT RESPONSE TO EVALUATE:\n"${draftResponse}"\n\nOutput your JSON review:`;
 
   try {
-    // 8-second timeout for constitutional review — must not block streaming
+    // 20-second timeout for constitutional review — must not block streaming
     const timeoutPromise = new Promise<null>((_, reject) =>
-      setTimeout(() => reject(new Error('Constitutional review timeout')), 8000)
+      setTimeout(() => reject(new Error('Constitutional review timeout')), 20000)
     );
 
     const reviewPromise = nvidiaNimClient.chat.completions.create({
