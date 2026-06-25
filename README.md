@@ -2,7 +2,7 @@
 
 *Document last updated: 2026-06-24*
 
-![Project Banner](https://raw.githubusercontent.com/VIKAS9793/northstar-wealth-ai/main/docs/assets/project_banner.png)
+![Project Banner](docs/assets/project_banner.png)
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
