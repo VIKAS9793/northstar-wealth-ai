@@ -52,46 +52,48 @@ export async function POST(req: Request) {
       req.headers.get('x-session-id') ??
       `session-${Date.now()}-${Math.random().toString(36).slice(2, 15)}`;
 
-    const result = await generateAIResponse(
-      message,
-      customerProfile,
-      chatHistory ?? [],
-      sessionId,
-      clientIp,
-      userAgent
-    ) as OrchestratorPayload;
-
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        // Start keepalive instantly to bypass Netlify 10s Inactivity Timeout
         const keepalive = setInterval(() => {
           controller.enqueue(encoder.encode(': keepalive\n\n'));
         }, 8000);
 
-        // Send metadata as the first chunk — includes auditId for L7 correlation
-        const metadata = {
-          type: 'metadata',
-          intent: result.intent,
-          wasComplianceBlocked: result.wasComplianceBlocked,
-          auditId: (result as { auditId?: string }).auditId,
-          requiresExplicitConsent: result.requiresExplicitConsent,
-          error: result.success ? undefined : result.error
-        };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));
-
-        // If it was intercepted by a fast-path string return (Governance/Cache/Error)
-        if (!result.success || typeof result.data === 'string' || !result.data) {
-          const text = result.success ? result.data : (result.error || "Error");
-          if (text) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', text })}\n\n`));
-          }
-          clearInterval(keepalive);
-          controller.close();
-          return;
-        }
-
-        // Iterate over the OpenAI stream
         try {
+          // Block inside the stream context so the HTTP response headers are already sent
+          const result = await generateAIResponse(
+            message,
+            customerProfile,
+            chatHistory ?? [],
+            sessionId,
+            clientIp,
+            userAgent
+          ) as OrchestratorPayload;
+
+          // Send metadata as the first chunk — includes auditId for L7 correlation
+          const metadata = {
+            type: 'metadata',
+            intent: result.intent,
+            wasComplianceBlocked: result.wasComplianceBlocked,
+            auditId: (result as { auditId?: string }).auditId,
+            requiresExplicitConsent: result.requiresExplicitConsent,
+            error: result.success ? undefined : result.error
+          };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`));
+
+          // If it was intercepted by a fast-path string return (Governance/Cache/Error)
+          if (!result.success || typeof result.data === 'string' || !result.data) {
+            const text = result.success ? result.data : (result.error || "Error");
+            if (text) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', text })}\n\n`));
+            }
+            clearInterval(keepalive);
+            controller.close();
+            return;
+          }
+
+          // Iterate over the OpenAI stream
           for await (const chunk of result.data) {
             const content = chunk.choices[0]?.delta?.content || "";
             if (content) {
