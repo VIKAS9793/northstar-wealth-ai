@@ -390,7 +390,8 @@ ${profileBlock}
 
 ${goalsBlock}
 
-TONE DIRECTIVE: ${tone}
+TTONE DIRECTIVE: ${tone}
+CONCISENESS DIRECTIVE: You MUST limit your response to a maximum of 50 words. Be extremely concise. This is a strict system limit.
 
 ${resolvedDirectives ? `--- ENGINE DIRECTIVES (follow strictly) ---\n${resolvedDirectives}\n---` : ''}
 
@@ -465,7 +466,7 @@ ${STRUCTURED_OUTPUT_SYSTEM_SUFFIX}`;
         ...mappedHistory,
         { role: 'user', content: message },
       ],
-      max_tokens: 300,
+      max_tokens: 100,
       temperature,
       stream: false,
     });
