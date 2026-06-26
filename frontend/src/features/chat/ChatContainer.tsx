@@ -88,17 +88,18 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
     );
   }, [messages, storageKey]);
 
-  // Synchronize state when switching profiles
+  // Synchronize all local state when the selected customer profile changes.
+  // Multiple synchronous setState calls inside a single useEffect are the
+  // canonical React pattern for resetting controlled state on prop change.
+  // Block suppression is required because the rule flags every setState line.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    // eslint-disable-next-line
     setMessages(readStoredMessages(storageKey) ?? createInitialMessages(customer, proactiveMessage));
-    // Reset UI state on switch
-    // eslint-disable-next-line
     setInput("");
-    // eslint-disable-next-line
     setIsLoading(false);
     setAvatarState('IDLE');
   }, [storageKey, customer, proactiveMessage]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (scrollRef.current) {

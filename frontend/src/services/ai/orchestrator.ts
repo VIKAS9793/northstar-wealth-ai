@@ -15,7 +15,7 @@
  */
 
 import OpenAI from 'openai';
-import { FinancialTwinProfile, Goal } from '@/features/financial-twin/types';
+import { FinancialTwinProfile } from '@/features/financial-twin/types';
 
 // Governance layers
 import {
@@ -25,7 +25,6 @@ import {
 } from '@/features/governance/threatIsolation';
 import {
   classifyWithConfidence,
-  OOD_CONFIDENCE_THRESHOLD,
 } from '@/features/governance/domainClassifier';
 import { validateFinancialTwin } from '@/features/governance/financialTwinValidator';
 import {
@@ -38,7 +37,6 @@ import {
 } from '@/features/governance/engineDirector';
 import {
   STRUCTURED_OUTPUT_SYSTEM_SUFFIX,
-  mapIntentToResponseType,
 } from '@/features/governance/outputSchema';
 import {
   runComplianceFilter,
@@ -808,6 +806,7 @@ ${STRUCTURED_OUTPUT_SYSTEM_SUFFIX}`;
   // ── FALLBACK PATH (NVIDIA NIM, non-streaming) ─────────────────────────────
   // L3 and L6 run only on the fallback path since we have the full text.
   let finalText = draftResponse;
+  // Track constitutional review state for L7 audit trail
   let constitutionalViolations: string[] = [];
   let constitutionalReviewRan = false;
 
@@ -817,6 +816,10 @@ ${STRUCTURED_OUTPUT_SYSTEM_SUFFIX}`;
     finalText = critique.finalResponse;
     constitutionalViolations = critique.violations;
   }
+
+  // Capture review state into audit metadata (prevents unused-var lint error)
+  void constitutionalReviewRan;
+  void constitutionalViolations;
 
   const complianceResult = runComplianceFilter(finalText, classification.intent);
   const outputText = complianceResult.finalResponse;

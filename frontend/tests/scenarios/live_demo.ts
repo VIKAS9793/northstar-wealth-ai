@@ -1,5 +1,4 @@
 import { assessThreatLevel } from '../../src/features/governance/threatIsolation';
-import { classifyWithConfidence } from '../../src/features/governance/domainClassifier';
 import { runComplianceFilter } from '../../src/features/governance/complianceFilter';
 
 const L0_SCENARIOS = [

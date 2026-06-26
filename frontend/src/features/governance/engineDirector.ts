@@ -64,7 +64,7 @@ export function resolveEngineDirectives(rawDirectives: EngineDirectiveMap): stri
   // Apply suppression and format
   const resolvedEngines = activeEngines.filter(e => !suppressedEngines.has(e));
 
-  const formatted = resolvedEngines.map((engine, i) => {
+  const formatted = resolvedEngines.map((engine) => {
     const priority = ENGINE_PRIORITY_ORDER.indexOf(engine) + 1;
     return `[${engine} ENGINE — PRIORITY ${priority}]\n${rawDirectives[engine].trim()}`;
   });

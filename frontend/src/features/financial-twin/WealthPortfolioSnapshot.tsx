@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FinancialTwinProfile } from './types';
 
 interface WealthPortfolioSnapshotProps {
@@ -6,7 +6,6 @@ interface WealthPortfolioSnapshotProps {
 }
 
 export function WealthPortfolioSnapshot({ profile }: WealthPortfolioSnapshotProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
 
   const absoluteReturn = profile.current_value - profile.total_invested;
   const returnPercentage = (absoluteReturn / profile.total_invested) * 100;
