@@ -448,17 +448,33 @@ export async function generateAIResponse(
    * short-circuiting the established suitability pushback flow.
    */
   if (profile.risk_profile === 'Conservative') {
-    const isDesperate = /(invest anyway|insist|don't care|just do it|buy it|still want|my money|risk hai toh ishq)/i.test(message);
+    /**
+     * Desperate override signals — user is explicitly insisting against the suitability warning.
+     * Includes Hinglish override phrases: "bas karo", "kar do", "lagao", "abhi karo", "khareed lo".
+     * NOTE: Hinglish return-expectation terms (zyada return, paisa double) are NOT included here.
+     * Those are classified via SUITABILITY_CHECK (L1) and isHighRiskEntity — this regex is only
+     * for explicit "force the trade" language, keeping SEBI guaranteed-returns prohibition intact.
+     */
+    const isDesperate = /(invest anyway|insist|don't care|just do it|buy it|still want|my money|risk hai toh ishq|bas (karo|kar|lagao|invest karo)|kar do|abhi (karo|invest|lagao)|sirf (karo|lagao|invest)|please invest|just buy|khareed lo|le lo)/i.test(message);
 
     /**
-     * High-risk entity check — covers both SEBI taxonomy and colloquial retail language.
-     * Colloquial synonyms mirror the SUITABILITY_CHECK pattern in domainClassifier.ts.
-     * Both must be updated together when new terms are added.
+     * High-risk term vocabulary — covers SEBI taxonomy, English colloquial, and Indian Hinglish.
+     * Must stay in sync with: FINANCIAL_ENTITIES and SUITABILITY_CHECK pattern in domainClassifier.ts.
+     * When adding new terms, update all three locations in the same commit.
      */
     const HIGH_RISK_TERMS = [
-      'small cap', 'f&o', 'options', 'derivatives',
-      'risky fund', 'high risk fund', 'high-risk fund',
-      'aggressive fund', 'high risk', 'very risky'
+      // SEBI taxonomy
+      'small cap', 'f&o', 'options', 'derivatives', 'futures', 'penny stock',
+      'sectoral fund', 'thematic fund', 'direct equity',
+      // English colloquial
+      'risky fund', 'high risk fund', 'high-risk fund', 'aggressive fund',
+      'high risk', 'very risky', 'riskiest', 'high yield fund',
+      'leveraged fund', 'leverage fund', 'speculative fund',
+      'concentrated fund', 'high return fund', 'high beta', 'risky bet',
+      // Indian / Hinglish
+      'multibagger', 'intraday', 'momentum fund',
+      'zyada return', 'jyada return', 'zyada munafa',
+      'paisa double', 'double karo', 'mota munafa', 'mota return', 'high risk bet',
     ];
     const isHighRiskEntity = classification.financialEntities.some(
       e => HIGH_RISK_TERMS.includes(e.toLowerCase())
@@ -469,7 +485,11 @@ export async function generateAIResponse(
 
     for (const msg of [...recentUserMessages].reverse()) {
       const pastCls = classifyWithConfidence(msg.content);
-      if (pastCls.intent === 'SUITABILITY_CHECK' || pastCls.financialEntities.some(e => ['small cap', 'f&o', 'options', 'derivatives'].includes(e.toLowerCase()))) {
+      // Use the same HIGH_RISK_TERMS for historical strike evaluation so past
+      // colloquial or Hinglish messages count as strikes, not just SEBI terms.
+      const pastHadHighRisk = pastCls.intent === 'SUITABILITY_CHECK' ||
+        HIGH_RISK_TERMS.some(term => msg.content.toLowerCase().includes(term));
+      if (pastHadHighRisk) {
         previousStrikeCount++;
       } else {
         break;

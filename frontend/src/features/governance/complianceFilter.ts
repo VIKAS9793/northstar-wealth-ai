@@ -30,6 +30,16 @@ const PROHIBITED_PATTERNS: RegExp[] = [
   /\bno risk\b/i,
   /\bwill definitely (earn|get|make|grow|return|give)\b/i,
   /\byou (will|are going to) (definitely|certainly|surely) (earn|profit|gain|get)\b/i,
+  // Indian / Hinglish guaranteed-return language (SEBI IA Reg 15 compliance)
+  // These phrases imply certainty of return and are prohibited in AI-generated responses.
+  // They can appear in user input (handled by suitability routing) but must never appear
+  // in LLM-generated output as outcome statements.
+  /\bpaisa (double|do-guna|dugna) (hoga|karega|milega|guarantee)\b/i,
+  /\b(double|do-guna) (your|mera|meri) (paisa|money|investment)\b/i,
+  /\bzyada (return|munafa) (milega|hoga|pakka|guaranteed?)\b/i,
+  /\bmota (munafa|return|paisa) (milega|hoga|guaranteed?)\b/i,
+  /\bpakka (profit|return|munafa|kamaoge)\b/i,
+  /\b(confirm|guaranteed?) (return|profit|munafa|kamai)\b/i,
 ];
 
 // Protective phrasing — these whitelist a phrase from the prohibited check

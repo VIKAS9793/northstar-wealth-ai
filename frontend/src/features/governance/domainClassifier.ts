@@ -60,6 +60,16 @@ const FINANCIAL_ENTITIES: string[] = [
   
   // General Personal Finance & Other Assets
   'portfolio', 'goal', 'corpus', 'return', 'equity', 'debt', 'rebalance', 'allocation', 'fd', 'fixed deposit', 'ppf', 'nps', 'insurance', 'term plan', 'emergency fund', 'home loan', 'emi', 'income', 'salary', 'bonus', 'tax', 'epf', 'vpf', 'sukanya samriddhi', 'ssy', 'sovereign gold bond', 'sgb', 'nsc',
+
+  // Indian colloquial high-risk investment signals
+  // These terms are used by retail investors in Hinglish/Hindi context when requesting
+  // high-risk instruments. Presence boosts confidence and triggers SUITABILITY_CHECK routing.
+  'multibagger', 'intraday', 'momentum fund', 'momentum invest', 'high yield fund',
+  'leveraged fund', 'leverage fund', 'speculative fund', 'speculative invest',
+  'high beta', 'concentrated fund', 'high return fund',
+  // Hinglish risk phrases
+  'zyada return', 'jyada return', 'zyada munafa', 'paisa double', 'double karo',
+  'risky bet', 'high risk bet', 'mota munafa', 'mota return',
 ];
 
 // Maximum confidence boost from financial entity presence
@@ -122,13 +132,14 @@ const CLASSIFICATION_RULES: PatternRule[] = [
     bias: 'RECENCY_BIAS',
     baseConfidence: 0.85,
   },
-  // SUITABILITY CHECK — high-risk instrument requests (SEBI taxonomy + colloquial synonyms)
-  // Colloquial terms added (2024-06-26): retail investors rarely use SEBI vocabulary.
-  // "risky fund", "high risk", "aggressive fund" are the actual language used.
+  // SUITABILITY CHECK — high-risk instrument requests (SEBI taxonomy + colloquial + Indian context)
+  // Colloquial terms added (2026-06-26): retail investors rarely use SEBI vocabulary.
+  // Indian colloquial terms added (2026-06-26): covers Hinglish phrases used by retail investors
+  // to express high-risk intent (multibagger, intraday, paisa double, zyada return, etc.).
   // Without these, all colloquial high-risk requests fall through to GENERAL and bypass
   // the Progressive Escalation Interceptor in orchestrator.ts.
   {
-    pattern: /small.?cap|mid.?cap|f&o|futures|options|direct equity|penny stock|derivatives|sectoral fund|thematic fund|risky fund|high.?risk (fund|invest|portfolio)|very risky|aggressive (fund|invest)|riskiest|high.?risk\b/i,
+    pattern: /small.?cap|mid.?cap|f&o|futures|options|direct equity|penny stock|derivatives|sectoral fund|thematic fund|risky fund|high.?risk (fund|invest|portfolio)|very risky|aggressive (fund|invest)|riskiest|high.?risk\b|multibagger|intraday (trad|invest)|momentum (fund|invest)|leveraged? (fund|etf)|speculative (fund|invest)|high yield fund|high beta|concentrated fund|high return fund|zyada return|jyada return|zyada munafa|paisa double|double (karo|my money|kar)|mota (munafa|return)|risky bet/i,
     intent: 'SUITABILITY_CHECK',
     bias: 'OVERCONFIDENCE',
     baseConfidence: 0.90,

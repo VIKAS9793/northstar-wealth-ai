@@ -77,11 +77,16 @@ OOD Threshold: Inputs with confidence below 0.65 and no financial entities are r
 Financial Entity Vocabulary: 30 terms. Each match boosts confidence by 0.04 (max +12%).
 
 **SUITABILITY_CHECK Pattern (updated 2026-06-26):**
-Covers both SEBI taxonomy terms and colloquial retail language. Prior to this fix, phrases like
+Covers SEBI taxonomy, English colloquial, and Indian Hinglish retail language. Prior to this fix, phrases like
 "risky fund", "high risk", "aggressive fund" fell through to `GENERAL` and bypassed the escalation
 interceptor. Covered terms now include:
 - SEBI taxonomy: `small cap`, `mid cap`, `f&o`, `futures`, `options`, `derivatives`, `sectoral fund`, `thematic fund`, `penny stock`
-- Colloquial synonyms: `risky fund`, `high risk fund`, `high-risk`, `aggressive fund`, `very risky`, `riskiest`
+- English colloquial: `risky fund`, `high risk fund`, `high-risk`, `aggressive fund`, `very risky`, `riskiest`, `leveraged fund`, `speculative fund`, `concentrated fund`, `high yield fund`
+- Indian / Hinglish: `multibagger`, `intraday`, `momentum fund`, `zyada return`, `jyada return`, `zyada munafa`, `paisa double`, `double karo`, `mota munafa`, `mota return`, `risky bet`
+
+**Indian colloquial FINANCIAL_ENTITIES additions (2026-06-26):**
+The entity vocabulary now includes Indian high-risk signals for confidence boosting.
+Presence of these terms in a message adds +0.04 confidence per match (max +12%) to the suitability classification.
 
 > [!IMPORTANT]
 > When adding new terms to this pattern, also update `HIGH_RISK_TERMS` in `orchestrator.ts`.
@@ -181,6 +186,7 @@ Purpose: Detect prohibited language and inject mandatory SEBI-aware disclosures 
 > - Guaranteed / assured / risk-free / certain returns
 > - "This fund will" / "You will definitely" / "Sure shot"
 > - "Best fund" / "No. 1 fund" / "Cannot lose"
+> - **Indian / Hinglish prohibited phrases (SEBI IA Reg 15):** `paisa double hoga`, `zyada return milega`, `mota munafa milega`, `pakka profit`, `confirmed return` — these imply certainty of return and are blocked in all LLM output regardless of the user's language.
 
 Whitelist: Protective phrasing (`cannot guarantee`, `subject to market risk`) passes through.
 
