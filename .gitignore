@@ -32,6 +32,9 @@ yarn-error.log*
 # vercel
 .vercel
 
-# typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI agent workflow files — internal, never publish
+.agents/
+.gemini/
