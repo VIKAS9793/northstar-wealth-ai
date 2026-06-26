@@ -461,7 +461,11 @@ export async function generateAIResponse(
   // Repeated vagueness escalation
   if (classification.intent === 'CLARIFICATION') {
     const userMessages = chatHistory.filter(m => m.role === 'user');
-    if (userMessages.length >= 1) {
+    const assistantMessages = chatHistory.filter(m => m.role === 'assistant');
+    const lastAssistantMsg = assistantMessages.length > 0 ? assistantMessages[assistantMessages.length - 1].content : '';
+    const isAnsweringProbe = lastAssistantMsg.includes('?');
+
+    if (!isAnsweringProbe && userMessages.length >= 1) {
       const prevMsg = userMessages[userMessages.length - 1].content;
       if (prevMsg.split(' ').length <= 3) {
         const rmName = profile.rm_name ?? 'your dedicated Relationship Manager';
