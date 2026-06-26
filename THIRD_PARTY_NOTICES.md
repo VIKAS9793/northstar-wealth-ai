@@ -15,7 +15,8 @@ This Proof of Concept was built using the following open-source technologies and
 - **Tailwind CSS** (MIT License) - Tailwind Labs Inc.
 - **Vitest** (MIT License) - Vitest Core Team
 - **Framer Motion** (MIT License) - Framer B.V.
-- **Llama 3.3 70B Instruct** (Llama 3 Community License) - Meta Platforms, Inc. (Served via NVIDIA NIM)
+- **Llama 3.3 70B Instruct / Versatile** (Llama 3 Community License) - Meta Platforms, Inc. (Served via Groq LPU / NVIDIA NIM)
+- **Groq LPU API** - Groq, Inc.
 - **NVIDIA NIM API** - NVIDIA Corporation
 
 *All other third-party libraries used in `package.json` are distributed under the MIT, Apache 2.0, or ISC licenses.*

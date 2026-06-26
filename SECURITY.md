@@ -19,7 +19,7 @@ It applies to:
 - The AI orchestrator (`/frontend/src/services/ai/orchestrator.ts`)
 - All documentation in `/docs`
 
-It does **not** apply to third-party services (NVIDIA NIM, Netlify), which operate under their own security policies.
+It does **not** apply to third-party services (Groq, NVIDIA NIM, Netlify), which operate under their own security policies.
 
 ---
 
@@ -113,17 +113,17 @@ Storage: In-memory session map for prototype. Production target: `POST /api/idbi
 
 ### What this project uses
 
-The only external secret this project requires is an NVIDIA NIM API key for LLM inference.
+The only external secrets this project requires are the Groq API key (Primary) and NVIDIA NIM API key (Fallback) for LLM inference.
 
 | Secret | Location | Handling |
 |---|---|---|
-| `NVIDIA_NIM_API_KEY` | `.env.local` (never committed) | Read server-side only via `process.env` in Next.js API routes |
+| `GROQ_API_KEY` / `NVIDIA_NIM_API_KEY` | `.env.local` (never committed) | Read server-side only via `process.env` in Next.js API routes |
 | No other secrets | — | This project uses no database, no auth service, no payment processor |
 
 ### What is explicitly prohibited
 
 - API keys are never logged at any log level
-- API keys are never included in client-side bundles (the NVIDIA NIM call is server-side only in `route.ts`)
+- API keys are never included in client-side bundles (the Groq / NVIDIA NIM call is server-side only in `route.ts`)
 - No secrets are hardcoded anywhere in the codebase
 - `.env.local` is listed in `.gitignore` and has never been committed
 
@@ -156,9 +156,9 @@ The mock data includes:
 
 Session interaction data (chat messages, audit entries) is held in-memory for the duration of a browser session. It is not persisted to any database, file system, or third-party service. On page reload, all session data is lost.
 
-### Data transmitted to NVIDIA NIM
+### Data transmitted to Groq / NVIDIA NIM
 
-The following is sent to the NVIDIA NIM inference endpoint on each chat interaction:
+The following is sent to the inference endpoint on each chat interaction:
 - The constructed system prompt (contains synthetic Financial Twin data only)
 - The last 6 turns of chat history
 - The current user message (post threat-isolation, post classification)
@@ -182,7 +182,7 @@ npm audit
 All production dependencies should resolve with zero high or critical vulnerabilities. The project uses a minimal dependency surface:
 - Next.js 15 (framework)
 - React 19 (UI)
-- OpenAI SDK (NVIDIA NIM-compatible client)
+- OpenAI SDK (Groq / NVIDIA NIM-compatible client)
 - Tailwind CSS v4 (styling)
 - Vitest (testing, devDependency only)
 
@@ -224,7 +224,7 @@ The `/api/chat` route (`frontend/src/app/api/chat/route.ts`) implements:
 | Rate limiting | None | Per-IP and per-session rate limiting on `/api/chat` |
 | Input size cap | 800-char soft warn | Hard HTTP 413 at API route layer |
 | Audit persistence | In-memory | POST to IDBI-controlled audit infrastructure |
-| NVIDIA NIM key | Shared API key | Per-environment rotated key with secret manager |
+| Inference API key | Shared API key | Per-environment rotated key with secret manager |
 | HTTPS enforcement | Netlify default | Bank-grade TLS 1.3 + HSTS |
 | CSP headers | None | Strict Content-Security-Policy |
 | CORS policy | Next.js default | Restricted to IDBI-controlled origins |

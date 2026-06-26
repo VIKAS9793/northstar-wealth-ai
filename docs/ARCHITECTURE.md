@@ -183,7 +183,7 @@ Example: Detects Salary Increase -> Recommends **Step-Up SIP** routed through **
 
 # AI Reasoning Layer
 Technology: Meta Llama 3.3 70B Instruct
-Deployment: NVIDIA NIM API
+Deployment: Groq LPU API (Primary) / NVIDIA NIM API (Fallback)
 Role: Reasons on top of structured outputs from wealth engines. Does not directly generate independent investment recommendations. Generates purely natural language responses adhering to governance constraints.
 
 ---

@@ -36,7 +36,7 @@ graph TD
   L1 -->|PASS| L2[L2: Financial Twin Validation - Pre-flight Rules]
   L2 -->|requiresEscalation| RM[Human RM Escalation]
   L2 -->|PASS| L4[L4: Engine Director - Deterministic Conflict Resolution]
-  L4 --> L5[L5: LLM Generation - Llama 3.3 70B via NVIDIA NIM]
+  L4 --> L5[L5: LLM Generation - Llama 3.3 70B via Groq LPU]
   L5 --> L3[L3: Constitutional AI Critique - Self-Review Loop]
   L3 --> L6[L6: Post-Generation Compliance Filter - SEBI Disclosures]
   L6 --> L7[L7: Audit Trail - Immutable Session Log]

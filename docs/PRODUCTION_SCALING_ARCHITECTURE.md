@@ -40,7 +40,7 @@ graph TD
     end
 
     subgraph "External LLM Tier"
-        LLM[Nvidia NIM / LLM API<br/>Llama-3 70B]
+        LLM[Groq LPU / Nvidia NIM API<br/>Llama-3 70B]
     end
 
     CBS -- Nightly Batch / Events --> KAFKA
@@ -71,7 +71,7 @@ Aligning with modern Indian banking standards, the stack transitions from the Po
 | **Core Integration** | Mock JSON | Kafka + REST APIs | Asynchronous, event-driven syncing to avoid CBS strain. |
 | **State Storage** | Local Browser State | Redis Enterprise | Sub-millisecond latency for Financial Twin data. |
 | **Intent Classifier** | Regex (Lexical) | BGE-m3 (Semantic Vectors) | Handles fluid Hinglish queries natively. |
-| **LLM Inference** | Public LLM API | Self-Hosted Nvidia NIM | Data never leaves the banking Virtual Private Cloud (VPC). |
+| **LLM Inference** | Groq LPU / Public LLM API | Self-Hosted Nvidia NIM / LPU | Data never leaves the banking Virtual Private Cloud (VPC). |
 | **Execution** | Console Logs | BSE StarMF / IDBI APIs | Real-world transaction routing and SIP creation. |
 
 ---

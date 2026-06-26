@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
 ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css)
 ![Vitest](https://img.shields.io/badge/Vitest-Passing-729B1B?style=for-the-badge&logo=vitest)
-![NVIDIA NIM](https://img.shields.io/badge/NVIDIA_NIM-Llama_3.3_70B-76B900?style=for-the-badge&logo=nvidia)
+![Groq LPU](https://img.shields.io/badge/Groq_LPU-Llama_3.3_70B-f55036?style=for-the-badge&logo=groq)
 ![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
 [![Try the Live Demo](https://img.shields.io/badge/Try_the_Live_Demo-Interactive_PWA-2563EB?style=for-the-badge&logo=netlify&logoColor=cyan)](https://northstar-wealth-ai.netlify.app/)
 
@@ -17,9 +17,7 @@ An AI-powered Wealth Management interface built for the modern Indian investor. 
 
 ## Video Walkthrough
 
-[![NorthStar Wealth Companion Demo](https://img.youtube.com/vi/AL3z0U6U8vM/maxresdefault.jpg)](https://youtu.be/AL3z0U6U8vM)
-
-*Click the image above to watch the full 3-minute mobile app walkthrough on YouTube.*
+[🎥 Watch the full 3-minute mobile app walkthrough on YouTube](https://youtu.be/AL3z0U6U8vM)
 
 ## Why This Project Exists
 
@@ -113,7 +111,7 @@ graph TD
   L1 -->|PASS| L2[L2: Financial Twin Validation - Pre-flight Rules]
   L2 -->|requiresEscalation| RM[Human RM Escalation]
   L2 -->|PASS| L4[L4: Engine Director - Conflict Resolution]
-  L4 --> L5[L5: LLM Generation - Llama 3.3 70B via NVIDIA NIM]
+  L4 --> L5[L5: LLM Generation - Llama 3.3 70B via Groq LPU]
   L5 --> L3[L3: Constitutional AI Critique - Self-Review Loop]
   L3 --> L6[L6: Post-Generation Compliance Filter]
   L6 --> L7[L7: Audit Trail - Immutable Session Log]
@@ -128,7 +126,15 @@ All responses are informed by:
 - Behavioral Coaching Logic
 - Financial Resilience Signals
 
-This design allows the system to remain model-agnostic. Currently, the orchestrator utilizes **NVIDIA NIM** running `meta/llama-3.3-70b-instruct` for deterministic zero-shot classification and rigorous compliance-enforced generation.
+This design allows the system to remain model-agnostic. Currently, the orchestrator utilizes **Groq LPU Inference** running `llama-3.3-70b-versatile` for deterministic zero-shot classification and rigorous compliance-enforced generation, achieving sub-second latency. NVIDIA NIM remains configured as a High Availability fallback.
+
+### Groq LPU Performance Benchmarks
+- **Model**: `llama-3.3-70b-versatile`
+- **Time to First Token (TTFT)**: 169ms - 583ms
+- **Total Latency**: < 1.0s
+- **Input Tokens**: ~1,100 (Highly optimized, compressed prompt)
+- **Output Tokens**: ~30-45 (Enforced by 50-word Conciseness Directive)
+- **API Strategy**: Bypasses traditional serverless timeouts (e.g., Netlify's 10s limit) by streaming instantly.
 
 ## Testing Architecture & Quality Assurance
 
