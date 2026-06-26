@@ -76,6 +76,18 @@ OOD Threshold: Inputs with confidence below 0.65 and no financial entities are r
 
 Financial Entity Vocabulary: 30 terms. Each match boosts confidence by 0.04 (max +12%).
 
+**SUITABILITY_CHECK Pattern (updated 2026-06-26):**
+Covers both SEBI taxonomy terms and colloquial retail language. Prior to this fix, phrases like
+"risky fund", "high risk", "aggressive fund" fell through to `GENERAL` and bypassed the escalation
+interceptor. Covered terms now include:
+- SEBI taxonomy: `small cap`, `mid cap`, `f&o`, `futures`, `options`, `derivatives`, `sectoral fund`, `thematic fund`, `penny stock`
+- Colloquial synonyms: `risky fund`, `high risk fund`, `high-risk`, `aggressive fund`, `very risky`, `riskiest`
+
+> [!IMPORTANT]
+> When adding new terms to this pattern, also update `HIGH_RISK_TERMS` in `orchestrator.ts`.
+> Both lists must stay in sync — the orchestrator performs a direct string-match fallback
+> in addition to the entity extraction path.
+
 ---
 
 ## Layer 2: Financial Twin Validation
@@ -213,7 +225,25 @@ Console format: `[AUDIT] {auditId} | {intent} | conf:{confidence} | blocked:{was
 
 Purpose: When a user attempts to force a high-risk trade that contradicts their risk profile, the AI stops chat progression and delegates to a deterministic, non-bypassable UI flow to ensure informed consent.
 
-4-Phase Architecture:
+**Progressive Escalation Interceptor** (`src/services/ai/orchestrator.ts`)
+
+Fires before the OFF_TOPIC short-circuit. Conditions that route to the consent widget:
+
+1. `classification.intent === 'SUITABILITY_CHECK'` — L1 detected a high-risk instrument request
+2. `isHighRiskEntity === true` — message contains a known high-risk term (SEBI or colloquial)
+3. `isDesperate === true` — user signals override intent ("insist", "just do it", "buy it")
+
+> [!IMPORTANT]
+> Prior to 2026-06-26, condition 3 required `previousStrikeCount > 0`, meaning a user had to
+> have already been classified as SUITABILITY_CHECK in a prior turn. Since colloquial messages
+> were never classified as SUITABILITY_CHECK (Bug 1), `previousStrikeCount` was always 0 and
+> the widget never fired. This guard has been removed: `isDesperate` alone is sufficient to
+> invoke the widget for a Conservative profile investor.
+
+`HIGH_RISK_TERMS` in `orchestrator.ts` mirrors the SUITABILITY_CHECK regex in `domainClassifier.ts`.
+Both must be updated together when adding new high-risk vocabulary.
+
+4-Phase UI Architecture:
 1. **Human Language Interrupt:** Stops the user with plain-language consequences (e.g., "This fund can lose up to 40-50% in a downturn") rather than legal jargon, ensuring true cognitive understanding.
 2. **Explicit Friction:** Requires 3 manual checkbox acknowledgements and a 5-second forced delay before the liability can be accepted.
 3. **DPDP-Compliant Hashing:** On acceptance, generates a non-repudiable cryptographic hash (`SHA-256`) of the timestamp, customer ID, and action. This ensures bank protection without exposing PII in the logs.

@@ -122,9 +122,13 @@ const CLASSIFICATION_RULES: PatternRule[] = [
     bias: 'RECENCY_BIAS',
     baseConfidence: 0.85,
   },
-  // SUITABILITY CHECK — high-risk instrument requests
+  // SUITABILITY CHECK — high-risk instrument requests (SEBI taxonomy + colloquial synonyms)
+  // Colloquial terms added (2024-06-26): retail investors rarely use SEBI vocabulary.
+  // "risky fund", "high risk", "aggressive fund" are the actual language used.
+  // Without these, all colloquial high-risk requests fall through to GENERAL and bypass
+  // the Progressive Escalation Interceptor in orchestrator.ts.
   {
-    pattern: /small.?cap|mid.?cap|f&o|futures|options|direct equity|penny stock|derivatives|sectoral fund|thematic fund/i,
+    pattern: /small.?cap|mid.?cap|f&o|futures|options|direct equity|penny stock|derivatives|sectoral fund|thematic fund|risky fund|high.?risk (fund|invest|portfolio)|very risky|aggressive (fund|invest)|riskiest|high.?risk\b/i,
     intent: 'SUITABILITY_CHECK',
     bias: 'OVERCONFIDENCE',
     baseConfidence: 0.90,

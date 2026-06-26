@@ -449,7 +449,20 @@ export async function generateAIResponse(
    */
   if (profile.risk_profile === 'Conservative') {
     const isDesperate = /(invest anyway|insist|don't care|just do it|buy it|still want|my money|risk hai toh ishq)/i.test(message);
-    const isHighRiskEntity = classification.financialEntities.some(e => ['small cap', 'f&o', 'options', 'derivatives'].includes(e.toLowerCase()));
+
+    /**
+     * High-risk entity check — covers both SEBI taxonomy and colloquial retail language.
+     * Colloquial synonyms mirror the SUITABILITY_CHECK pattern in domainClassifier.ts.
+     * Both must be updated together when new terms are added.
+     */
+    const HIGH_RISK_TERMS = [
+      'small cap', 'f&o', 'options', 'derivatives',
+      'risky fund', 'high risk fund', 'high-risk fund',
+      'aggressive fund', 'high risk', 'very risky'
+    ];
+    const isHighRiskEntity = classification.financialEntities.some(
+      e => HIGH_RISK_TERMS.includes(e.toLowerCase())
+    ) || HIGH_RISK_TERMS.some(term => message.toLowerCase().includes(term));
 
     let previousStrikeCount = 0;
     const recentUserMessages = chatHistory.filter(m => m.role === 'user').slice(-2);
@@ -463,9 +476,12 @@ export async function generateAIResponse(
       }
     }
 
-    if (classification.intent === 'SUITABILITY_CHECK' || isHighRiskEntity || (isDesperate && previousStrikeCount > 0)) {
+    if (classification.intent === 'SUITABILITY_CHECK' || isHighRiskEntity || isDesperate) {
       const currentStrikeCount = previousStrikeCount + 1;
 
+      // Strike 3+ OR any desperate override signal → fire the consent widget immediately.
+      // The isDesperate guard no longer requires prior strikes: a user saying "insist"
+      // or "just do it" is a strong enough signal regardless of session history.
       if (currentStrikeCount >= 3 || isDesperate) {
         return {
           success: true as const,
