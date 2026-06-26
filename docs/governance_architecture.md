@@ -207,6 +207,20 @@ Console format: `[AUDIT] {auditId} | {intent} | conf:{confidence} | blocked:{was
 
 ---
 
+## UI Governance: Cognitive Liability Transfer
+
+**Component:** `src/components/SuitabilityOverrideModal.tsx`
+
+Purpose: When a user attempts to force a high-risk trade that contradicts their risk profile, the AI stops chat progression and delegates to a deterministic, non-bypassable UI flow to ensure informed consent.
+
+4-Phase Architecture:
+1. **Human Language Interrupt:** Stops the user with plain-language consequences (e.g., "This fund can lose up to 40-50% in a downturn") rather than legal jargon, ensuring true cognitive understanding.
+2. **Explicit Friction:** Requires 3 manual checkbox acknowledgements and a 5-second forced delay before the liability can be accepted.
+3. **DPDP-Compliant Hashing:** On acceptance, generates a non-repudiable cryptographic hash (`SHA-256`) of the timestamp, customer ID, and action. This ensures bank protection without exposing PII in the logs.
+4. **Hard Exit:** The chat flow ends immediately. The user is provided an external link to the investment gateway, preventing the LLM from generating unscripted responses or looping on liability confirmation.
+
+---
+
 ## Governance Outcome
 
 **Traditional AI Output Model:**

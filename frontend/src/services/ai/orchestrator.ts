@@ -65,6 +65,7 @@ export interface OrchestratorPayload {
   error?: string;
   intent: string;
   wasComplianceBlocked: boolean;
+  requiresConsentWidget?: boolean;
   auditId?: string;
 }
 
@@ -93,7 +94,7 @@ function calculateGoalMetrics(profile: GoalEngineProfile, goal: { name: string; 
 /** Goal Intelligence Engine — L4 directive for primary goal context. */
 export function runGoalIntelligenceEngine(profile: GoalEngineProfile, classification?: { intent: string }): string {
   if (!profile.goals || profile.goals.length === 0) return '';
-  // PRODUCTION FIX: Gate goal context strictly to goal-relevant intents.
+  // Gate goal context strictly to goal-relevant intents.
   // Root cause of "goal bleed": injecting "₹20L home downpayment" into EDUCATION/GENERAL
   // system prompts caused the LLM to reference it regardless of what the user was asking.
   // AMFI Code of Conduct Clause 5: investment advice must not be provided unsolicited.
@@ -439,6 +440,60 @@ export async function generateAIResponse(
   // ══════════════════════════════════════════════════════════════════════════
   const classification = classifyWithConfidence(message);
 
+  /**
+   * ── PROGRESSIVE ESCALATION INTERCEPTOR (OVERRIDES L1 DOMAIN REJECTION) ──
+   * Analyzes historical context to identify persistent suitability conflicts 
+   * (e.g., a Conservative investor repeatedly demanding high-risk instruments).
+   * 
+   * This interceptor is intentionally placed before the OFF_TOPIC check to prevent 
+   * out-of-domain insistence queries (e.g., "I don't care, just buy it") from 
+   * short-circuiting the established suitability pushback flow.
+   */
+  if (profile.risk_profile === 'Conservative') {
+    const isDesperate = /(invest anyway|insist|don't care|just do it|buy it|still want|my money|risk hai toh ishq)/i.test(message);
+    const isHighRiskEntity = classification.financialEntities.some(e => ['small cap', 'f&o', 'options', 'derivatives'].includes(e.toLowerCase()));
+
+    let previousStrikeCount = 0;
+    const recentUserMessages = chatHistory.filter(m => m.role === 'user').slice(-2);
+
+    for (const msg of [...recentUserMessages].reverse()) {
+      const pastCls = classifyWithConfidence(msg.content);
+      if (pastCls.intent === 'SUITABILITY_CHECK' || pastCls.financialEntities.some(e => ['small cap', 'f&o', 'options', 'derivatives'].includes(e.toLowerCase()))) {
+        previousStrikeCount++;
+      } else {
+        break;
+      }
+    }
+
+    if (classification.intent === 'SUITABILITY_CHECK' || isHighRiskEntity || (isDesperate && previousStrikeCount > 0)) {
+      const currentStrikeCount = previousStrikeCount + 1;
+
+      if (currentStrikeCount >= 3 || isDesperate) {
+        return {
+          success: true as const,
+          data: "I must firmly reiterate that this investment carries extreme volatility and contradicts your Conservative risk profile. If you still insist on proceeding against my recommendation, you must explicitly accept full liability for potential capital loss below.",
+          intent: 'SUITABILITY_CHECK',
+          wasComplianceBlocked: true,
+          requiresConsentWidget: true
+        };
+      } else if (currentStrikeCount === 2) {
+        return {
+          success: true as const,
+          data: `As your Wealth Companion, I must warn you again. Small Cap and High-Risk instruments can lose significant value in a market correction. This does not align with your goal of preserving capital. Are you absolutely certain you want to expose your hard-earned money to this risk?`,
+          intent: 'SUITABILITY_CHECK',
+          wasComplianceBlocked: false
+        };
+      } else {
+        return {
+          success: true as const,
+          data: `I notice you're asking about high-risk investments. As a Conservative investor, instruments like these expose your capital to severe volatility. Why are you considering taking on this level of risk today?`,
+          intent: 'SUITABILITY_CHECK',
+          wasComplianceBlocked: false
+        };
+      }
+    }
+  }
+
   if (classification.intent === 'OFF_TOPIC') {
     return { success: true as const, data: OFF_TOPIC_RESPONSE, intent: 'OFF_TOPIC', wasComplianceBlocked: false };
   }
@@ -480,6 +535,8 @@ export async function generateAIResponse(
   const twinValidation = validateFinancialTwin(profile, classification);
 
   if (twinValidation.requiresEscalation) {
+
+
     const rmName = profile.rm_name ?? 'your dedicated Relationship Manager';
     return { success: true as const, data: ESCALATION_RESPONSE(rmName), intent: classification.intent, wasComplianceBlocked: false };
   }

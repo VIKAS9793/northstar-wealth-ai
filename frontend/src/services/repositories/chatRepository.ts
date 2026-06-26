@@ -6,7 +6,7 @@ export interface ChatRequestPayload {
   customerProfile: FinancialTwinProfile;
   chatHistory?: { role: string; content: string }[];
   sessionId?: string;
-  onMetadata?: (intent: string, wasComplianceBlocked: boolean) => void;
+  onMetadata?: (intent: string, wasComplianceBlocked: boolean, requiresConsentWidget?: boolean) => void;
   onChunk?: (text: string) => void;
 }
 
@@ -20,6 +20,7 @@ interface ChatSseEvent {
   type?: 'metadata' | 'text';
   intent?: string;
   wasComplianceBlocked?: boolean;
+  requiresConsentWidget?: boolean;
   error?: string;
   text?: string;
 }
@@ -72,7 +73,7 @@ export async function sendChatMessage(payload: ChatRequestPayload, retries = 1):
           try {
             const data = JSON.parse(dataStr) as ChatSseEvent;
             if (data.type === 'metadata') {
-              if (payload.onMetadata) payload.onMetadata(data.intent ?? 'GENERAL', !!data.wasComplianceBlocked);
+              if (payload.onMetadata) payload.onMetadata(data.intent ?? 'GENERAL', !!data.wasComplianceBlocked, data.requiresConsentWidget);
               if (data.error) throw new Error(data.error);
             } else if (data.type === 'text') {
               if (payload.onChunk && data.text) payload.onChunk(data.text);

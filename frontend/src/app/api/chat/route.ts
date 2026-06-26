@@ -44,6 +44,7 @@ export async function POST(req: Request) {
           type: 'metadata',
           intent: result.intent,
           wasComplianceBlocked: result.wasComplianceBlocked,
+          requiresConsentWidget: (result as any).requiresConsentWidget || false,
           auditId: (result as { auditId?: string }).auditId,
           error: result.success ? undefined : result.error
         };

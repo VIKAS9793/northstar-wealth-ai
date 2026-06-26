@@ -1,10 +1,16 @@
 import React from "react";
 import { User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { SuitabilityOverrideModal } from "@/components/SuitabilityOverrideModal";
 
 interface MessageProps {
   role: "user" | "ai";
   content: string;
+  requiresConsentWidget?: boolean;
+  customerId?: string;
+  userName?: string;
+  onConsent?: () => void;
+  onAlternative?: () => void;
 }
 
 /**
@@ -12,7 +18,7 @@ interface MessageProps {
  * 
  * Renders the conversation history using standard 2D banking UI patterns.
  */
-export function ChatBubble({ role, content }: MessageProps): React.ReactElement {
+export function ChatBubble({ role, content, requiresConsentWidget, customerId, userName = "User", onConsent, onAlternative }: MessageProps): React.ReactElement {
   if (role === "user") {
     return (
       <div className="self-end max-w-[85%] flex items-end gap-3 mb-4">
@@ -28,11 +34,21 @@ export function ChatBubble({ role, content }: MessageProps): React.ReactElement 
 
   // AI Message
   return (
-    <div className="self-start max-w-[85%] flex items-end gap-3 mb-4">
-      <div className="bg-white border-l-4 border-l-teal-500 border-t border-r border-b border-gray-200 p-4 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-800 leading-relaxed prose prose-sm prose-indigo prose-em:not-italic prose-em:font-medium prose-strong:font-semibold">
-        <p className="font-bold text-xs text-teal-700 mb-1">Dhan:</p>
-        <ReactMarkdown>{content}</ReactMarkdown>
+    <div className="self-start max-w-[85%] flex flex-col gap-2 mb-4">
+      <div className="flex items-end gap-3">
+        <div className="bg-white border-l-4 border-l-teal-500 border-t border-r border-b border-gray-200 p-4 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-800 leading-relaxed prose prose-sm prose-indigo prose-em:not-italic prose-em:font-medium prose-strong:font-semibold">
+          <p className="font-bold text-xs text-teal-700 mb-1">Dhan:</p>
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
       </div>
+      {requiresConsentWidget && customerId && onConsent && onAlternative && (
+        <SuitabilityOverrideModal 
+          customerId={customerId} 
+          userName={userName}
+          onConsent={onConsent}
+          onAlternative={onAlternative}
+        />
+      )}
     </div>
   );
 }

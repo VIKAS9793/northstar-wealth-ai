@@ -13,6 +13,7 @@ import { FinancialTwinProfile } from "@/features/financial-twin/types";
 interface Message {
   role: "user" | "ai";
   content: string;
+  requiresConsentWidget?: boolean;
 }
 
 interface ChatContainerProps {
@@ -166,9 +167,17 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
         customerProfile: customer,
         chatHistory,
         sessionId: customer.id,
-        onMetadata: (intent, wasComplianceBlocked) => {
+        onMetadata: (intent, wasComplianceBlocked, requiresConsentWidget) => {
           setIsLoading(false); // Stop typing indicator as soon as stream starts
           
+          if (requiresConsentWidget) {
+            setMessages(prev => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1].requiresConsentWidget = true;
+              return newMessages;
+            });
+          }
+
           if (wasComplianceBlocked || intent === 'TAX_PLANNING') {
             playSound('alert');
             dispatchAvatarEvent('COMPLIANCE_TRIGGER');
@@ -243,7 +252,29 @@ export function ChatContainer({ customer, proactiveMessage }: ChatContainerProps
       <div ref={scrollRef} className="flex-1 overflow-y-auto w-full pb-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
         <div className="p-6 flex flex-col space-y-6">
           {messages.map((msg, idx) => (
-            <ChatBubble key={idx} role={msg.role} content={msg.content} />
+            <ChatBubble 
+              key={idx} 
+              role={msg.role} 
+              content={msg.content} 
+              requiresConsentWidget={msg.requiresConsentWidget}
+              customerId={customer.id}
+              userName={customer.name}
+              onConsent={() => {
+                alert("Redirecting to IDBI Investment Gateway...");
+                // In a real app, this would be: window.location.href = '/invest';
+              }}
+              onAlternative={() => {
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'ai') {
+                    newMessages[newMessages.length - 1].requiresConsentWidget = false;
+                  }
+                  return newMessages;
+                });
+                // Delay sending slightly to allow state to settle
+                setTimeout(() => handleSend("Please show me funds that match my conservative profile."), 0);
+              }}
+            />
           ))}
           {isLoading && (
             <div className="self-start max-w-[85%] bg-white border-l-4 border-brand-gold p-4 rounded-xl rounded-tl-none shadow-sm flex items-center gap-2 h-[52px]">
