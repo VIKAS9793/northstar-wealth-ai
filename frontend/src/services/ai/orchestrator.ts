@@ -400,6 +400,19 @@ export async function generateAIResponse(
     return { success: true as const, data: responses[pid] ?? responses.p1_young_pro, intent: 'RESILIENCE', wasComplianceBlocked: false };
   }
 
+  // ── Quick Action 7: "I want to buy a home in 8 years" (Demo Stability) ───────────
+  if (lowerMsg.includes('buy a home') || lowerMsg.includes('home in 8 years')) {
+    const responses: Record<string, string> = {
+      p1_young_pro:
+        `Namaste ${n}! Buying a home in 8 years is a fantastic goal. Based on your income, a ₹20 lakh downpayment is realistic. However, with ₹0 investable surplus currently (your EMIs and spends consume your inflow), you must first optimize your discretionary spending. Let's aim to free up ₹5,000/month to start this journey. Shall I show you how? *Consult your RM Vikram for details.*`,
+      p2_family_planner:
+        `Namaste ${n}! With 50% of your income already going towards EMIs, adding a home goal now would put severe pressure on your cashflow. I strongly recommend focusing on your underfunded Retirement goal (only 5% progress) and paying down existing debt before committing to a home purchase. *Consult your RM Neha for personalized structuring.*`,
+      p3_pre_retiree:
+        `Namaste ${n}! At 52, taking on a new home purchase could significantly impact your retirement runway. Your ₹2 Cr retirement goal is 60% funded. I strongly advise against new EMI obligations. If you have surplus capital, let's direct it toward securing your retirement first. *Consult your RM Sanjay for a structured plan.*`,
+    };
+    return { success: true as const, data: responses[pid] ?? responses.p1_young_pro, intent: 'GOAL_PLANNING', wasComplianceBlocked: false };
+  }
+
   // ── Legacy Hindi cache (preserve existing) ───────────────────────────────────
   if (lowerMsg.includes('paisa invest karna hai')) {
     const cached = profile.emergency_fund_months < 6

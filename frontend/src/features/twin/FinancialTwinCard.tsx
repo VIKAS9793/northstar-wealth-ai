@@ -41,6 +41,10 @@ export function FinancialTwinCard({ profile }: FinancialTwinCardProps): React.Re
     profile.risk_profile === "Conservative" ? "text-emerald-500" :
     profile.risk_profile === "Aggressive"   ? "text-red-500" : "text-amber-500";
 
+  const surplus = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
+  const surplusLabel = surplus <= 0 ? "Limited" : surplus < 5000 ? "Building" : "Optimal";
+  const surplusColor = surplus <= 0 ? "text-rose-700" : surplus < 5000 ? "text-amber-700" : "text-emerald-700";
+
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm w-full max-w-md">
       <div className="flex items-center gap-4 mb-6">
@@ -83,8 +87,8 @@ export function FinancialTwinCard({ profile }: FinancialTwinCardProps): React.Re
         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
           <IndianRupee className="w-5 h-5 text-purple-500 shrink-0" />
           <div>
-            <p className="text-xs text-gray-500 font-medium">Cash Flow</p>
-            <p className="text-sm font-semibold text-gray-900">{incomeStability}</p>
+            <p className="text-xs text-gray-500 font-medium">Investable Surplus</p>
+            <p className={`text-sm font-semibold ${surplusColor}`}>{surplusLabel}</p>
           </div>
         </div>
       </div>

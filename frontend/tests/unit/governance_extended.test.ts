@@ -17,6 +17,7 @@ import { resolveEngineDirectives, ENGINE_PRIORITY_ORDER } from '../../src/featur
 import { mapIntentToResponseType, STRUCTURED_OUTPUT_SYSTEM_SUFFIX } from '../../src/features/governance/outputSchema';
 import { runComplianceFilter } from '../../src/features/governance/complianceFilter';
 import { createAuditEntry, getSessionAuditLog, getSessionStats } from '../../src/features/governance/auditTrail';
+import { isTaxPlanningQuery } from '../../src/features/governance/taxRules';
 import { FinancialTwinProfile } from '../../src/features/financial-twin/types';
 
 // ── Shared fixtures ─────────────────────────────────────────────────────────────
@@ -794,5 +795,22 @@ describe('L7 — Audit Trail (createAuditEntry, getSessionAuditLog, getSessionSt
     const e3 = createAuditEntry({ ...baseAuditData, sessionId: id });
     const ids = new Set([e1.auditId, e2.auditId, e3.auditId]);
     expect(ids.size).toBe(3);
+  });
+});
+
+describe('Manual Tax Scope Verification', () => {
+  it('blocks personalized tax calculations (e.g. 15L income, 1.5L 80C)', () => {
+    const message = "If I earn 15L and invest 1.5L in 80C, what is my exact tax liability?";
+    expect(isTaxPlanningQuery(message)).toBe(true);
+  });
+
+  it('blocks queries asking for personalized tax savings (e.g. buy a house)', () => {
+    const message = "How much tax will I save if I buy a house?";
+    expect(isTaxPlanningQuery(message)).toBe(true);
+  });
+
+  it('allows general tax rule questions (e.g. 80C limit)', () => {
+    const message = "What is the 80C limit?";
+    expect(isTaxPlanningQuery(message)).toBe(false);
   });
 });

@@ -14,8 +14,8 @@ interface Props {
 
 export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }: Props) {
   const [activeModal, setActiveModal] = useState<"SIP Health" | "Goal Track" | "Spending Habits" | "Safety Net" | null>(null);
-  // ③ Collapsed by default — progressive disclosure. JTBD: see number → ask Dhan.
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  // ③ Expanded by default — visible immediately to showcase Financial Twin features.
+  const [isDetailOpen, setIsDetailOpen] = useState(true);
 
   // Summary pills for the collapsed trigger row
   const emergencyStatus = profile.emergency_fund_months >= 6
@@ -25,6 +25,13 @@ export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }
     : { label: "Fund gap", color: "bg-rose-100 text-rose-700" };
 
   const goalCount = profile.goals.length;
+
+  const surplus = profile.telemetry.monthly_inflow - profile.telemetry.monthly_outflow - profile.telemetry.total_emis;
+  const surplusStatus = surplus <= 0 
+    ? { label: "Limited Surplus", color: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300" }
+    : surplus < 5000
+    ? { label: "Building Surplus", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" }
+    : { label: "Optimal Surplus", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" };
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-950 overflow-y-auto">
@@ -139,6 +146,9 @@ export function MobileBankingDashboard({ profile, onLogout, onProactiveTrigger }
                 </span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${emergencyStatus.color}`}>
                   {emergencyStatus.label}
+                </span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${surplusStatus.color}`}>
+                  {surplusStatus.label}
                 </span>
               </div>
             )}

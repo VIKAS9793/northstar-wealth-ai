@@ -212,7 +212,7 @@ export const TAX_ESCALATION_RESPONSE =
   "domain of a qualified Chartered Accountant. Under SEBI IA guidelines, " +
   "Dhan cannot provide personalised tax advice or compute your specific tax liability. " +
   "Please contact your IDBI Relationship Manager or reach IDBI Bank Customer Care " +
-  "at 1800-200-1947 (toll free) for detailed guidance on your tax situation.";
+  "at 1800-209-4324 (toll free) for detailed guidance on your tax situation.";
 
 /**
  * Returns true if the query requires PERSONALISED tax advice, calculation, or planning.
